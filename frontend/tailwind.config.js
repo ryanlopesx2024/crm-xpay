@@ -1,0 +1,98 @@
+export default {
+  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Outfit', 'Inter', 'sans-serif'],
+      },
+      colors: {
+        brand: {
+          50:  '#eafdf3',
+          100: '#c8fae1',
+          200: '#96f3c4',
+          300: '#5ae8a2',
+          400: '#26d67d',
+          500: '#00C05A',
+          600: '#00A34D',
+          700: '#008640',
+          800: '#006B33',
+          900: '#005228',
+          950: '#003319',
+          DEFAULT: '#00C05A',
+        },
+        primary: {
+          50:  '#eafdf3',
+          100: '#c8fae1',
+          200: '#96f3c4',
+          300: '#5ae8a2',
+          400: '#26d67d',
+          500: '#00C05A',
+          600: '#00A34D',
+          700: '#008640',
+          800: '#006B33',
+          900: '#005228',
+          DEFAULT: '#00C05A',
+        },
+        success: {
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          500: '#10b981',
+          600: '#059669',
+          DEFAULT: '#10b981',
+        },
+        warning: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          500: '#f59e0b',
+          600: '#d97706',
+          DEFAULT: '#f59e0b',
+        },
+        danger: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          500: '#ef4444',
+          600: '#dc2626',
+          DEFAULT: '#ef4444',
+        },
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
+        'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'slide-in-left': 'slideInLeft 0.25s ease-out forwards',
+        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+      },
+      keyframes: {
+        fadeInUp: {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInRight: {
+          from: { opacity: '0', transform: 'translateX(100%)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
+        },
+        slideInLeft: {
+          from: { opacity: '0', transform: 'translateX(-20px)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
+        },
+        pulseSoft: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        },
+      },
+    },
+  },
+  safelist: [
+    { pattern: /bg-brand-/ },
+    { pattern: /text-brand-/ },
+    { pattern: /border-brand-/ },
+    { pattern: /ring-brand-/ },
+    { pattern: /from-brand-/ },
+    { pattern: /to-brand-/ },
+    'animate-fade-in-up',
+    'animate-slide-in-right',
+    'animate-slide-in-left',
+    'animate-pulse-soft',
+  ],
+  plugins: [],
+};

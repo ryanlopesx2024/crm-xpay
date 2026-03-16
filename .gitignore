@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment files — NEVER commit
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Prisma
+backend/src/prisma/dev.db
+backend/src/prisma/dev.db-journal
+backend/src/prisma/*.db
+backend/src/prisma/*.db-journal
+
+# Uploads
+backend/uploads/
+backend/data/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/

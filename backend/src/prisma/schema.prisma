@@ -1,0 +1,397 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("basic")
+  settings  String   @default("{}")
+  createdAt DateTime @default(now())
+
+  users            User[]
+  departments      Department[]
+  leads            Lead[]
+  pipelines        Pipeline[]
+  tags             Tag[]
+  lists            LeadList[]
+  products         Product[]
+  lostReasons      LostReason[]
+  activityTypes    ActivityType[]
+  customFields     CustomField[]
+  channelInstances ChannelInstance[]
+  automations      Automation[]
+  apiKeys          ApiKey[]
+  shipments        Shipment[]
+}
+
+model User {
+  id               String   @id @default(uuid())
+  companyId        String
+  name             String
+  email            String   @unique
+  password         String
+  role             String   @default("AGENT")
+  avatar           String?
+  status           String   @default("OFFLINE")
+  maxConversations Int      @default(10)
+  createdAt        DateTime @default(now())
+
+  company              Company               @relation(fields: [companyId], references: [id])
+  departments          DepartmentAgent[]
+  pipelines            Pipeline[]
+  conversations        Conversation[]
+  deals                Deal[]
+  activities           Activity[]
+  messages             Message[]
+  leadHistories        LeadHistory[]
+  automationExecutions AutomationExecution[]
+}
+
+model Department {
+  id               String   @id @default(uuid())
+  companyId        String
+  name             String
+  description      String?
+  color            String   @default("#3b82f6")
+  distributionRule String   @default("ROUND_ROBIN")
+  workingHours     String   @default("{}")
+  offlineMessage   String?
+  createdAt        DateTime @default(now())
+
+  company       Company           @relation(fields: [companyId], references: [id])
+  agents        DepartmentAgent[]
+  conversations Conversation[]
+}
+
+model DepartmentAgent {
+  departmentId String
+  userId       String
+
+  department Department @relation(fields: [departmentId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@id([departmentId, userId])
+}
+
+model Lead {
+  id           String    @id @default(uuid())
+  companyId    String
+  name         String
+  email        String?
+  phone        String?
+  countryCode  String    @default("+55")
+  company      String?
+  site         String?
+  document     String?
+  birthdate    DateTime?
+  address      String?
+  notes        String?
+  customFields String    @default("{}")
+  riskScore    Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  companyRel    Company          @relation(fields: [companyId], references: [id])
+  tags          LeadTag[]
+  lists         LeadListMember[]
+  conversations Conversation[]
+  deals         Deal[]
+  activities    Activity[]
+  history       LeadHistory[]
+  messages      Message[]
+
+  @@unique([companyId, phone])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now())
+
+  company Company   @relation(fields: [companyId], references: [id])
+  leads   LeadTag[]
+}
+
+model LeadTag {
+  leadId String
+  tagId  String
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  tag  Tag  @relation(fields: [tagId], references: [id])
+
+  @@id([leadId, tagId])
+}
+
+model LeadList {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company Company          @relation(fields: [companyId], references: [id])
+  members LeadListMember[]
+}
+
+model LeadListMember {
+  leadId String
+  listId String
+
+  lead Lead     @relation(fields: [leadId], references: [id])
+  list LeadList @relation(fields: [listId], references: [id])
+
+  @@id([leadId, listId])
+}
+
+model Pipeline {
+  id        String   @id @default(uuid())
+  companyId String
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  stages  Stage[]
+  deals   Deal[]
+}
+
+model Stage {
+  id         String   @id @default(uuid())
+  pipelineId String
+  name       String
+  color      String   @default("#3b82f6")
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+  deals    Deal[]
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  companyId    String
+  name         String
+  description  String?
+  defaultValue Float    @default(0)
+  category     String?
+  createdAt    DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  deals   Deal[]
+}
+
+model LostReason {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  deals   Deal[]
+}
+
+model Deal {
+  id             String   @id @default(uuid())
+  leadId         String
+  pipelineId     String
+  stageId        String
+  productId      String?
+  assignedUserId String?
+  value          Float    @default(0)
+  status         String   @default("OPEN")
+  lostReasonId   String?
+  notes          String?
+  quantity       Int      @default(1)
+  discount       Float    @default(0)
+  surcharge      Float    @default(0)
+  freight        Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  lead         Lead        @relation(fields: [leadId], references: [id])
+  pipeline     Pipeline    @relation(fields: [pipelineId], references: [id])
+  stage        Stage       @relation(fields: [stageId], references: [id])
+  product      Product?    @relation(fields: [productId], references: [id])
+  assignedUser User?       @relation(fields: [assignedUserId], references: [id])
+  lostReason   LostReason? @relation(fields: [lostReasonId], references: [id])
+  activities   Activity[]
+}
+
+model ActivityType {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  icon      String   @default("phone")
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now())
+
+  company    Company    @relation(fields: [companyId], references: [id])
+  activities Activity[]
+}
+
+model Activity {
+  id             String    @id @default(uuid())
+  dealId         String?
+  leadId         String
+  typeId         String
+  title          String
+  description    String?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  assignedUserId String?
+  createdAt      DateTime  @default(now())
+
+  deal         Deal?        @relation(fields: [dealId], references: [id])
+  lead         Lead         @relation(fields: [leadId], references: [id])
+  type         ActivityType @relation(fields: [typeId], references: [id])
+  assignedUser User?        @relation(fields: [assignedUserId], references: [id])
+}
+
+model CustomField {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  type      String   @default("TEXT")
+  options   String?
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model ChannelInstance {
+  id         String   @id @default(uuid())
+  companyId  String
+  name       String
+  type       String
+  identifier String
+  status     String   @default("DISCONNECTED")
+  config     String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  conversations Conversation[]
+}
+
+model Conversation {
+  id                String   @id @default(uuid())
+  leadId            String
+  channelInstanceId String?
+  departmentId      String?
+  assignedUserId    String?
+  status            String   @default("PENDING")
+  queuePosition     Int?
+  lastMessageAt     DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  lead            Lead             @relation(fields: [leadId], references: [id])
+  channelInstance ChannelInstance? @relation(fields: [channelInstanceId], references: [id])
+  department      Department?      @relation(fields: [departmentId], references: [id])
+  assignedUser    User?            @relation(fields: [assignedUserId], references: [id])
+  messages        Message[]
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  leadId         String
+  userId         String?
+  automationId   String?
+  direction      String
+  type           String   @default("TEXT")
+  content        String?
+  mediaUrl       String?
+  mediaType      String?
+  duration       Int?
+  isRead         Boolean  @default(false)
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  lead         Lead         @relation(fields: [leadId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+}
+
+model Automation {
+  id             String   @id @default(uuid())
+  companyId      String
+  name           String
+  isActive       Boolean  @default(false)
+  trigger        String   @default("{}")
+  flow           String   @default("{\"nodes\":[],\"edges\":[]}")
+  executionCount Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  company    Company               @relation(fields: [companyId], references: [id])
+  executions AutomationExecution[]
+  history    LeadHistory[]
+}
+
+model AutomationExecution {
+  id           String    @id @default(uuid())
+  automationId String
+  leadId       String
+  userId       String?
+  status       String    @default("RUNNING")
+  currentStep  Int       @default(0)
+  log          String    @default("[]")
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  automation Automation @relation(fields: [automationId], references: [id])
+  user       User?      @relation(fields: [userId], references: [id])
+}
+
+model LeadHistory {
+  id           String   @id @default(uuid())
+  leadId       String
+  type         String
+  description  String
+  metadata     String   @default("{}")
+  automationId String?
+  userId       String?
+  createdAt    DateTime @default(now())
+
+  lead       Lead        @relation(fields: [leadId], references: [id])
+  automation Automation? @relation(fields: [automationId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  key         String    @unique
+  permissions String    @default("[]")
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model Shipment {
+  id                String   @id @default(uuid())
+  companyId         String
+  leadId            String?
+  dealId            String?
+  leadName          String   @default("")
+  product           String   @default("")
+  trackingCode      String
+  carrier           String   @default("CORREIOS")
+  status            String   @default("POSTED")
+  events            String   @default("[]")
+  estimatedDelivery String?
+  deliveredAt       String?
+  notes             String?
+  externalOrderId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+}

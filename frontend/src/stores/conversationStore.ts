@@ -14,6 +14,7 @@ interface ConversationState {
   removeMessage: (messageId: string) => void;
   replaceMessage: (tempId: string, message: Message) => void;
   updateConversation: (conversationId: string, updates: Partial<Conversation>) => void;
+  addConversation: (conv: Conversation) => void;
 }
 
 export const useConversationStore = create<ConversationState>((set) => ({
@@ -91,5 +92,12 @@ export const useConversationStore = create<ConversationState>((set) => ({
           ? { ...state.activeConversation, ...updates }
           : state.activeConversation,
     }));
+  },
+
+  addConversation: (conv) => {
+    set((state) => {
+      if (state.conversations.some((c) => c.id === conv.id)) return state;
+      return { conversations: [conv, ...state.conversations] };
+    });
   },
 }));

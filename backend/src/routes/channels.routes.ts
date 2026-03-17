@@ -66,9 +66,12 @@ router.post('/:id/connect', async (req: AuthRequest, res: Response): Promise<voi
 
     res.json({ qrcode: result.qrcode, status: 'CONNECTING' });
   } catch (err: any) {
-    console.error('[channels/connect]', err?.message);
-    // If instance already exists, just get QR
-    if (err?.response?.status === 403 || err?.message?.includes('already')) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data ? JSON.stringify(err.response.data) : err?.message;
+    console.error('[channels/connect] status=%s detail=%s', status, detail);
+
+    // Instance already exists → just fetch the QR code
+    if (status === 403 || err?.message?.includes('already')) {
       try {
         const channel = await prisma.channelInstance.findFirst({ where: { id: req.params.id } });
         if (channel) {
@@ -78,9 +81,11 @@ router.post('/:id/connect', async (req: AuthRequest, res: Response): Promise<voi
           res.json({ qrcode: qr, status: 'CONNECTING' });
           return;
         }
-      } catch { /* fall through */ }
+      } catch (inner: any) {
+        console.error('[channels/connect] fallback QR error', inner?.message);
+      }
     }
-    res.status(500).json({ error: 'Erro ao conectar. Verifique URL e chave da API.' });
+    res.status(500).json({ error: `Erro ao conectar: ${detail || 'verifique URL e chave da API'}` });
   }
 });
 

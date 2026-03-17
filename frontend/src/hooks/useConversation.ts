@@ -13,13 +13,30 @@ export function useConversation(conversationId?: string) {
     setActiveConversation,
     fetchMessages,
     updateConversation,
+    addConversation,
   } = useConversationStore();
 
-  // NOTE: new_message is handled per-conversation in ChatWindow with proper filtering.
-  // Here we only update conversation metadata (last message timestamp).
+  // Nova conversa chegou via Evolution webhook
+  useSocketEvent<{ conversation: Conversation; message: Message }>(
+    'new_conversation',
+    useCallback(({ conversation }) => {
+      addConversation(conversation);
+    }, [addConversation])
+  );
+
+  // Mensagem em conversa existente → atualiza lastMessageAt e move pro topo
+  useSocketEvent<{ conversationId: string; message: Message; lead: unknown }>(
+    'new_incoming_message',
+    useCallback(({ conversationId: convId, message }) => {
+      updateConversation(convId, {
+        lastMessageAt: message.createdAt,
+        status: 'PENDING',
+      });
+    }, [updateConversation])
+  );
+
+  // Mensagem enviada ou recebida dentro de uma conversa aberta
   useSocketEvent<Message>('new_message', useCallback((message) => {
-    // Only update the conversations list metadata, not the messages array
-    // (ChatWindow handles adding to messages with conversationId filtering)
     updateConversation(message.conversationId, { lastMessageAt: message.createdAt });
   }, [updateConversation]));
 

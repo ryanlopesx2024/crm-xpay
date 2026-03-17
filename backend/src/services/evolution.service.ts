@@ -1,4 +1,5 @@
 import axios from 'axios';
+import QRCode from 'qrcode';
 
 // ── per-channel credentials ────────────────────────────────────────────────
 export interface EvolutionCreds {
@@ -10,7 +11,7 @@ function makeApi(creds: EvolutionCreds) {
   return axios.create({
     baseURL: creds.url.replace(/\/$/, ''),
     headers: { apikey: creds.key },
-    timeout: 12000,
+    timeout: 15000,
   });
 }
 
@@ -26,6 +27,15 @@ export function getCredsFromConfig(config: Record<string, unknown>): EvolutionCr
   };
 }
 
+// ── converte raw QR code string → data URL base64 ─────────────────────────
+async function rawCodeToBase64(code: string): Promise<string> {
+  try {
+    return await QRCode.toDataURL(code, { width: 300, margin: 2 });
+  } catch {
+    return '';
+  }
+}
+
 // ── instance management ────────────────────────────────────────────────────
 export async function createEvolutionInstance(
   instanceName: string,
@@ -39,19 +49,38 @@ export async function createEvolutionInstance(
     integration: 'WHATSAPP-BAILEYS',
   };
   if (webhookUrl) {
-    body.webhook = { url: webhookUrl, byEvents: true, base64: true };
-    body.webhookByEvents = true;
+    body.webhook = {
+      url: webhookUrl,
+      byEvents: true,
+      base64: true,
+      events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
+    };
   }
+
   const { data } = await api.post('/instance/create', body);
-  // Evolution v2: data.qrcode.base64 | Evolution v1: data.base64
-  const qr: string = data?.qrcode?.base64 || data?.base64 || '';
+
+  // v1: data.qrcode.base64 or data.base64 (already a data URL or base64 string)
+  const v1Base64: string = data?.qrcode?.base64 || data?.base64 || '';
+  if (v1Base64) return { qrcode: v1Base64 };
+
+  // v2: create doesn't return QR → fetch it via connect endpoint
+  const qr = await getEvolutionQRCode(instanceName, creds);
   return { qrcode: qr };
 }
 
 export async function getEvolutionQRCode(instanceName: string, creds: EvolutionCreds): Promise<string> {
   const api = makeApi(creds);
   const { data } = await api.get(`/instance/connect/${instanceName}`);
-  return data?.qrcode?.base64 || data?.base64 || '';
+
+  // v1 format
+  const v1Base64: string = data?.qrcode?.base64 || data?.base64 || '';
+  if (v1Base64) return v1Base64;
+
+  // v2 format: { pairingCode, code, count }
+  const rawCode: string = data?.code || '';
+  if (rawCode) return rawCodeToBase64(rawCode);
+
+  return '';
 }
 
 export async function getEvolutionStatus(instanceName: string, creds: EvolutionCreds): Promise<string> {
@@ -59,7 +88,6 @@ export async function getEvolutionStatus(instanceName: string, creds: EvolutionC
     const api = makeApi(creds);
     const { data } = await api.get(`/instance/connectionState/${instanceName}`);
     const state: string = data?.instance?.state || data?.state || 'DISCONNECTED';
-    // Normalize
     if (state === 'open' || state === 'CONNECTED') return 'CONNECTED';
     if (state === 'close' || state === 'CLOSED') return 'DISCONNECTED';
     if (state === 'connecting') return 'CONNECTING';

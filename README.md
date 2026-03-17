@@ -359,7 +359,71 @@ crm-xpay/
 
 ---
 
-## 🚀 Deploy no Render (produção)
+## ☁️ Opções de Deploy Gratuito
+
+| | Render | Railway + Vercel + Supabase |
+|---|---|---|
+| Frontend | Static Site | **Vercel** (sem sleep, CDN global) |
+| Backend | Web Service | **Railway** ($5 crédito/mês) |
+| Banco | PostgreSQL free | **Supabase** (500MB, sempre on) |
+| Sleep no free | ⚠️ Sim (15 min) | ✅ Não |
+| Deploy | 1 clique (Blueprint) | 3 plataformas |
+
+---
+
+## 🚀 Opção 1 — Railway + Vercel + Supabase (recomendado)
+
+### Passo 1 — Banco de dados no Supabase
+
+1. Acesse [supabase.com](https://supabase.com) → **New project**
+2. Anote a **Connection string** (URI) em Settings → Database → Connection string → URI
+3. Troque `[YOUR-PASSWORD]` pela senha do projeto
+
+```
+postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
+```
+
+---
+
+### Passo 2 — Backend no Railway
+
+1. Acesse [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
+2. Selecione `ryanlopesx2024/crm-xpay`
+3. Clique em **Add service** → selecione o repositório → defina o **Root Directory** como `backend`
+4. Vá em **Variables** e adicione:
+
+```env
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
+JWT_SECRET=gere_uma_chave_aleatoria_longa
+JWT_REFRESH_SECRET=outra_chave_aleatoria
+NODE_ENV=production
+PORT=3001
+FRONTEND_URL=https://crm-xpay.vercel.app
+BACKEND_URL=https://seu-projeto.up.railway.app
+```
+
+5. Railway faz o build automaticamente com `nixpacks.toml`
+6. Copie a URL gerada (ex: `https://crm-xpay-production.up.railway.app`)
+
+---
+
+### Passo 3 — Frontend no Vercel
+
+1. Acesse [vercel.com](https://vercel.com) → **Add New Project** → importar `ryanlopesx2024/crm-xpay`
+2. Defina **Root Directory** como `frontend`
+3. Framework: **Vite** (detectado automático)
+4. Em **Environment Variables** adicione:
+
+```env
+VITE_API_URL=https://seu-projeto.up.railway.app
+```
+
+5. Clique em **Deploy**
+6. Copie a URL gerada e atualize `FRONTEND_URL` no Railway
+
+---
+
+## 🚀 Opção 2 — Deploy no Render (produção)
 
 O projeto está pronto para subir no [Render](https://render.com) com **1 clique** via Blueprint.
 

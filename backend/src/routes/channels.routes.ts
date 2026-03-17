@@ -7,6 +7,7 @@ import {
   createEvolutionInstance, getEvolutionQRCode,
   getEvolutionStatus, disconnectEvolutionInstance, deleteEvolutionInstance,
 } from '../services/evolution.service';
+import { verifyCloudCredentials, getCloudCredsFromConfig } from '../services/whatsapp-cloud.service';
 
 const router = Router();
 router.use(authMiddleware);
@@ -152,6 +153,37 @@ router.post('/:id/disconnect', async (req: AuthRequest, res: Response): Promise<
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao desconectar' });
+  }
+});
+
+// ── POST /api/channels/:id/verify  →  verifica credenciais Cloud API ─────────
+router.post('/:id/verify', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const channel = await prisma.channelInstance.findFirst({
+      where: { id: req.params.id, companyId: req.companyId! },
+    });
+    if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
+
+    const cfg   = JSON.parse(channel.config || '{}');
+    const creds = getCloudCredsFromConfig(cfg);
+
+    if (!creds.phoneNumberId || !creds.accessToken) {
+      res.status(400).json({ error: 'Phone Number ID e Access Token são obrigatórios' });
+      return;
+    }
+
+    const result = await verifyCloudCredentials(creds);
+    if (result.ok) {
+      await prisma.channelInstance.update({
+        where: { id: channel.id },
+        data: { status: 'CONNECTED' },
+      });
+      res.json({ ok: true, phone: result.phone, status: 'CONNECTED' });
+    } else {
+      res.status(400).json({ ok: false, error: result.error });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Erro ao verificar' });
   }
 });
 

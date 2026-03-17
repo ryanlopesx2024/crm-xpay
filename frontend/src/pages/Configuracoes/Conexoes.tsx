@@ -8,9 +8,15 @@ import api from '../../services/api';
 
 // ── types ─────────────────────────────────────────────────────────────────────
 interface ChannelConfig {
+  // Evolution API
   evolutionUrl?: string;
   evolutionKey?: string;
   instanceName?: string;
+  // WhatsApp Cloud API (Meta oficial)
+  phoneNumberId?: string;
+  accessToken?: string;
+  verifyToken?: string;
+  wabaId?: string;
   // Intervalos
   msgInterval?: number;
   reconnectInterval?: number;
@@ -210,6 +216,8 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
   const updateCfg = (patch: Partial<ChannelConfig>) => setCfg(c => ({ ...c, ...patch }));
 
+  const isCloud = subtype === 'WHATSAPP_CLOUD' || subtype === 'WHATSAPP_CLOUD_MANUAL';
+
   const handleCreate = async () => {
     if (!name.trim()) { setErr('Nome da conexão é obrigatório'); return; }
     if (subtype === 'WHATSAPP_EVOLUTION') {
@@ -217,13 +225,19 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       if (!cfg.evolutionKey?.trim()) { setErr('Chave de API é obrigatória'); setFormTab('auth'); return; }
       if (!cfg.instanceName?.trim()) { setErr('Nome da instância é obrigatório'); setFormTab('auth'); return; }
     }
+    if (isCloud) {
+      if (!cfg.phoneNumberId?.trim()) { setErr('Phone Number ID é obrigatório'); setFormTab('auth'); return; }
+      if (!cfg.accessToken?.trim()) { setErr('Access Token é obrigatório'); setFormTab('auth'); return; }
+      if (!cfg.verifyToken?.trim()) { setErr('Verify Token é obrigatório'); setFormTab('auth'); return; }
+    }
     setSaving(true);
     setErr('');
     try {
+      const identifier = isCloud ? (cfg.phoneNumberId || name) : (cfg.instanceName || name);
       const { data } = await api.post('/api/channels', {
         name,
         type: subtype,
-        identifier: cfg.instanceName || name,
+        identifier,
         status: 'DISCONNECTED',
         config: JSON.stringify(cfg),
       });
@@ -347,15 +361,72 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             </div>
 
             <div className="px-5 py-4 space-y-3 min-h-[200px]">
-              {/* Autenticação */}
-              {formTab === 'auth' && (
+              {/* Autenticação — Cloud API */}
+              {formTab === 'auth' && isCloud && (
+                <>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                    <p className="font-semibold mb-1">Como obter as credenciais:</p>
+                    <ol className="list-decimal list-inside space-y-0.5">
+                      <li>Acesse <strong>developers.facebook.com</strong> → seu app → WhatsApp → API Setup</li>
+                      <li>Copie o <strong>Phone Number ID</strong> e o <strong>Temporary/Permanent Access Token</strong></li>
+                      <li>Configure o webhook da Meta com a URL abaixo e o Verify Token que você definir</li>
+                    </ol>
+                    <p className="mt-2 font-mono bg-blue-100 dark:bg-blue-900/40 rounded px-2 py-1 text-[10px] break-all">
+                      {window.location.origin.replace('5173', '3001')}/webhooks/whatsapp
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Phone Number ID</label>
+                    <input
+                      value={cfg.phoneNumberId || ''}
+                      onChange={e => updateCfg({ phoneNumberId: e.target.value })}
+                      placeholder="Ex: 123456789012345"
+                      className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Access Token (permanente)</label>
+                    <input
+                      type="password"
+                      value={cfg.accessToken || ''}
+                      onChange={e => updateCfg({ accessToken: e.target.value })}
+                      placeholder="EAAxxxx..."
+                      className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                      Verify Token
+                      <span className="ml-1.5 text-[9px] font-normal text-slate-400">Token que você vai colocar na Meta ao configurar o webhook</span>
+                    </label>
+                    <input
+                      value={cfg.verifyToken || ''}
+                      onChange={e => updateCfg({ verifyToken: e.target.value })}
+                      placeholder="Ex: meu-token-secreto"
+                      className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">WABA ID <span className="font-normal text-slate-400">(opcional)</span></label>
+                    <input
+                      value={cfg.wabaId || ''}
+                      onChange={e => updateCfg({ wabaId: e.target.value })}
+                      placeholder="WhatsApp Business Account ID"
+                      className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Autenticação — Evolution API */}
+              {formTab === 'auth' && !isCloud && (
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">URL da instância</label>
                     <input
                       value={cfg.evolutionUrl || ''}
                       onChange={e => updateCfg({ evolutionUrl: e.target.value })}
-                      placeholder="URL da instância do Evolution API"
+                      placeholder="Ex: http://localhost:8080"
                       className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                     />
                   </div>
@@ -501,6 +572,7 @@ function ChannelCard({
   const st = STATUS_CFG[channel.status] || STATUS_CFG.DISCONNECTED;
   const isConnected = channel.status === 'CONNECTED';
   const isPaused = channel.status === 'PAUSED';
+  const isCloudType = channel.type === 'WHATSAPP_CLOUD' || channel.type === 'WHATSAPP_CLOUD_MANUAL';
   const cfg = parseConfig(channel.config);
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [webhookMsg, setWebhookMsg] = useState('');
@@ -554,20 +626,23 @@ function ChannelCard({
       {/* Info */}
       <div className="space-y-1 mb-4">
         <p className="text-[10px] text-slate-400">
-          <span className="font-medium text-slate-500">Instância:</span> {channel.identifier}
+          <span className="font-medium text-slate-500">
+            {isCloudType ? 'Phone ID:' : 'Instância:'}
+          </span> {channel.identifier}
         </p>
         {cfg.evolutionUrl && (
           <p className="text-[10px] text-slate-400 truncate">
             <span className="font-medium text-slate-500">URL:</span> {cfg.evolutionUrl}
           </p>
         )}
+        {isCloudType && cfg.verifyToken && (
+          <p className="text-[10px] text-slate-400">
+            <span className="font-medium text-slate-500">Verify Token:</span> {cfg.verifyToken}
+          </p>
+        )}
         {(isConnected || isPaused) && (
-          <a
-            href={`https://web.whatsapp.com`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:underline"
-          >
+          <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:underline">
             whatsapp.com <ExternalLink size={9} />
           </a>
         )}
@@ -575,7 +650,17 @@ function ChannelCard({
 
       {/* Actions */}
       <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
-        {!isConnected && !isPaused && (
+        {/* Cloud API: botão Verificar em vez de QR */}
+        {isCloudType && !isConnected && (
+          <button
+            onClick={onConnect}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            <CheckCircle2 size={11} /> Verificar
+          </button>
+        )}
+        {/* Evolution API: botão Conectar (abre QR) */}
+        {!isCloudType && !isConnected && !isPaused && (
           <button
             onClick={onConnect}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 transition-colors"
@@ -636,14 +721,31 @@ export default function Conexoes() {
 
   useEffect(() => { fetchChannels(); }, []);
 
+  const [verifyMsg, setVerifyMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
+
   const handleCreated = (ch: Channel) => {
     setChannels(prev => [...prev, ch]);
     setShowCreate(false);
-    // Open QR modal automatically for Evolution connections
     if (ch.type === 'WHATSAPP_EVOLUTION') setQrChannel(ch);
+    // Cloud: mostra instrução de webhook
   };
 
-  const handleConnect = (ch: Channel) => setQrChannel(ch);
+  const handleConnect = async (ch: Channel) => {
+    const isCloud = ch.type === 'WHATSAPP_CLOUD' || ch.type === 'WHATSAPP_CLOUD_MANUAL';
+    if (isCloud) {
+      // Verifica credenciais na API da Meta
+      try {
+        const { data } = await api.post(`/api/channels/${ch.id}/verify`);
+        setChannels(prev => prev.map(c => c.id === ch.id ? { ...c, status: 'CONNECTED' } : c));
+        setVerifyMsg({ id: ch.id, msg: `✓ Conectado! Número: ${data.phone || ch.identifier}`, ok: true });
+      } catch (e: any) {
+        setVerifyMsg({ id: ch.id, msg: `✗ ${e?.response?.data?.error || 'Credenciais inválidas'}`, ok: false });
+      }
+      setTimeout(() => setVerifyMsg(null), 5000);
+    } else {
+      setQrChannel(ch);
+    }
+  };
 
   const handleDisconnect = async (id: string) => {
     try {
@@ -731,14 +833,20 @@ export default function Conexoes() {
       ) : (
         <div className="grid grid-cols-3 gap-4">
           {filtered.map(ch => (
-            <ChannelCard
-              key={ch.id}
-              channel={ch}
-              onConnect={() => handleConnect(ch)}
-              onDisconnect={() => handleDisconnect(ch.id)}
-              onDelete={() => handleDelete(ch.id)}
-              onToggle={() => handleToggle(ch.id)}
-            />
+            <div key={ch.id}>
+              <ChannelCard
+                channel={ch}
+                onConnect={() => handleConnect(ch)}
+                onDisconnect={() => handleDisconnect(ch.id)}
+                onDelete={() => handleDelete(ch.id)}
+                onToggle={() => handleToggle(ch.id)}
+              />
+              {verifyMsg?.id === ch.id && (
+                <p className={`text-[10px] mt-1 font-medium px-1 ${verifyMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {verifyMsg.msg}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       )}

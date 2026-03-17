@@ -1,15 +1,15 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../index';
+import { sendCloudTextMessage, getCloudCredsFromConfig } from '../services/whatsapp-cloud.service';
+import { sendEvolutionMessage, parseChannelConfig, getCredsFromConfig } from '../services/evolution.service';
 
 export function setupChatSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
-    const { userId, companyId, conversationId } = socket.handshake.auth;
+    const { userId, companyId } = socket.handshake.auth;
 
-    if (companyId) {
-      socket.join(companyId);
-    }
+    if (companyId) socket.join(companyId);
 
-    socket.on('join_conversation', async (convId: string) => {
+    socket.on('join_conversation', (convId: string) => {
       socket.join(`conv_${convId}`);
     });
 
@@ -29,7 +29,7 @@ export function setupChatSocket(io: Server) {
         });
         socket.to(`conv_${convId}`).emit('messages_read', { userId, messageIds });
       } catch (err) {
-        console.error('Error marking messages as read:', err);
+        console.error('[socket] message_read error:', err);
       }
     });
 
@@ -41,9 +41,14 @@ export function setupChatSocket(io: Server) {
       try {
         const conversation = await prisma.conversation.findUnique({
           where: { id: data.conversationId },
+          include: {
+            lead: true,
+            channelInstance: true,
+          },
         });
         if (!conversation) return;
 
+        // Salva a mensagem no banco
         const message = await prisma.message.create({
           data: {
             conversationId: data.conversationId,
@@ -64,13 +69,39 @@ export function setupChatSocket(io: Server) {
           data: { lastMessageAt: new Date() },
         });
 
+        // Emite para o frontend imediatamente
         io.to(`conv_${data.conversationId}`).emit('new_message', message);
         io.to(companyId).emit('conversation_updated', {
           conversationId: data.conversationId,
           lastMessage: message,
         });
+
+        // ── Envia via API do canal ──────────────────────────────────────────
+        if (data.type === 'TEXT' && conversation.lead?.phone && conversation.channelInstance) {
+          const channel = conversation.channelInstance;
+          const phone   = conversation.lead.phone;
+
+          try {
+            if (channel.type === 'WHATSAPP_CLOUD' || channel.type === 'WHATSAPP_CLOUD_MANUAL') {
+              const cfg   = JSON.parse(channel.config || '{}');
+              const creds = getCloudCredsFromConfig(cfg);
+              if (creds.phoneNumberId && creds.accessToken) {
+                await sendCloudTextMessage(phone, data.content, creds);
+              }
+            } else if (channel.type === 'WHATSAPP_EVOLUTION') {
+              const cfg   = parseChannelConfig(channel.config);
+              const creds = getCredsFromConfig(cfg);
+              if (creds.url && creds.key) {
+                await sendEvolutionMessage(channel.identifier, phone, data.content, creds);
+              }
+            }
+          } catch (sendErr: any) {
+            console.error('[socket] Falha ao enviar via API:', sendErr?.message);
+            // Não cancela — mensagem já foi salva no banco e emitida ao frontend
+          }
+        }
       } catch (err) {
-        console.error('Error sending message via socket:', err);
+        console.error('[socket] send_message error:', err);
       }
     });
   });

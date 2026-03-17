@@ -502,6 +502,30 @@ function ChannelCard({
   const isConnected = channel.status === 'CONNECTED';
   const isPaused = channel.status === 'PAUSED';
   const cfg = parseConfig(channel.config);
+  const [webhookLoading, setWebhookLoading] = useState(false);
+  const [webhookMsg, setWebhookMsg] = useState('');
+
+  const handleSetWebhook = async () => {
+    const url = prompt(
+      'URL pública do backend (ex: http://SEU-IP:3001 ou https://seu-dominio.com).\nDeixe vazio para usar localhost:3001:',
+      ''
+    );
+    if (url === null) return; // cancelou
+    setWebhookLoading(true);
+    setWebhookMsg('');
+    try {
+      const webhookUrl = url.trim()
+        ? `${url.trim().replace(/\/$/, '')}/webhooks/evolution`
+        : undefined;
+      await api.post(`/api/channels/${channel.id}/set-webhook`, webhookUrl ? { webhookUrl } : {});
+      setWebhookMsg('✓ Webhook configurado!');
+    } catch (e: any) {
+      setWebhookMsg('✗ ' + (e?.response?.data?.error || 'Erro'));
+    } finally {
+      setWebhookLoading(false);
+      setTimeout(() => setWebhookMsg(''), 4000);
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
@@ -567,13 +591,17 @@ function ChannelCard({
             <WifiOff size={11} /> Desconectar
           </button>
         )}
-        <button
-          onClick={onToggle}
-          title={isConnected ? 'Pausar' : 'Ativar'}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
-        >
-          <Settings size={11} /> Gerenciar
-        </button>
+        {channel.type === 'WHATSAPP_EVOLUTION' && (
+          <button
+            onClick={handleSetWebhook}
+            disabled={webhookLoading}
+            title="Configurar URL do webhook na Evolution"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+          >
+            {webhookLoading ? <Loader2 size={11} className="animate-spin" /> : <Settings size={11} />}
+            Webhook
+          </button>
+        )}
         {/* Toggle switch */}
         <div className="ml-auto">
           <Toggle checked={isConnected} onChange={onToggle} />
@@ -582,6 +610,11 @@ function ChannelCard({
           <Trash2 size={13} />
         </button>
       </div>
+      {webhookMsg && (
+        <p className={`text-[10px] mt-2 font-medium ${webhookMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>
+          {webhookMsg}
+        </p>
+      )}
     </div>
   );
 }

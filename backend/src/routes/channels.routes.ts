@@ -155,6 +155,48 @@ router.post('/:id/disconnect', async (req: AuthRequest, res: Response): Promise<
   }
 });
 
+// ── POST /api/channels/:id/set-webhook  →  re-registra webhook na Evolution ───
+router.post('/:id/set-webhook', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const channel = await prisma.channelInstance.findFirst({
+      where: { id: req.params.id, companyId: req.companyId! },
+    });
+    if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
+
+    const cfg = parseChannelConfig(channel.config);
+    const creds = getCredsFromConfig(cfg);
+    if (!creds.url || !creds.key) {
+      res.status(400).json({ error: 'URL e chave da API são obrigatórios' });
+      return;
+    }
+
+    // Permite passar uma URL personalizada no body, ou usa BACKEND_URL
+    const webhookUrl = req.body?.webhookUrl
+      || `${process.env.BACKEND_URL || 'http://localhost:3001'}/webhooks/evolution`;
+
+    const axios = (await import('axios')).default;
+    const api = axios.create({
+      baseURL: creds.url.replace(/\/$/, ''),
+      headers: { apikey: creds.key },
+      timeout: 10000,
+    });
+
+    await api.post(`/webhook/set/${channel.identifier}`, {
+      enabled: true,
+      url: webhookUrl,
+      webhookByEvents: false,
+      webhookBase64: false,
+      events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
+    });
+
+    res.json({ ok: true, webhookUrl });
+  } catch (err: any) {
+    const detail = err?.response?.data ? JSON.stringify(err.response.data) : err?.message;
+    console.error('[set-webhook]', detail);
+    res.status(500).json({ error: `Erro ao registrar webhook: ${detail}` });
+  }
+});
+
 // ── PATCH /api/channels/:id/toggle  →  ativa/desativa canal ──────────────────
 router.patch('/:id/toggle', async (req: AuthRequest, res: Response): Promise<void> => {
   try {

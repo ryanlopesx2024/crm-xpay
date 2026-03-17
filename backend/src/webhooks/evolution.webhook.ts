@@ -3,6 +3,11 @@ import { prisma, io } from '../index';
 
 const router = Router();
 
+// ── GET /webhooks/evolution/ping  →  verifica se o webhook é acessível ────────
+router.get('/ping', (_req: Request, res: Response) => {
+  res.json({ ok: true, timestamp: new Date().toISOString(), service: 'evolution-webhook' });
+});
+
 // Evolution API envia todos os eventos no mesmo endpoint
 router.post('/', async (req: Request, res: Response) => {
   // Responde imediatamente para não timeout

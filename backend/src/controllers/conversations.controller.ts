@@ -75,7 +75,11 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
 export const listConversations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { status, departmentId, assignedUserId, search, leadId } = req.query;
-    const where: Record<string, unknown> = {};
+
+    // Sempre filtra pela empresa do usuário autenticado
+    const where: Record<string, unknown> = {
+      lead: { companyId: req.companyId! },
+    };
 
     if (status) where.status = status as string;
     if (departmentId) where.departmentId = departmentId as string;
@@ -83,6 +87,7 @@ export const listConversations = async (req: AuthRequest, res: Response): Promis
     if (leadId) where.leadId = leadId as string;
     if (search) {
       where.lead = {
+        companyId: req.companyId!,
         OR: [
           { name: { contains: search as string, mode: 'insensitive' } },
           { phone: { contains: search as string } },

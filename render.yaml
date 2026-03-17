@@ -1,0 +1,92 @@
+## XPAY CRM — Render Infrastructure as Code
+## Deploy automático: conecte este repo no Render e clique em "Apply"
+## Docs: https://render.com/docs/blueprint-spec
+
+services:
+
+  # ── Backend (Node.js API) ────────────────────────────────────────────────────
+  - type: web
+    name: crm-xpay-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma db push --accept-data-loss && node dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: crm-xpay-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: crm-xpay-redis
+          type: redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: BACKEND_URL
+        fromService:
+          name: crm-xpay-backend
+          type: web
+          property: host
+          envVarKey: BACKEND_URL
+      # Preencha manualmente no painel do Render após o primeiro deploy:
+      - key: FRONTEND_URL
+        value: https://crm-xpay-frontend.onrender.com
+      - key: WHATSAPP_WEBHOOK_VERIFY_TOKEN
+        value: xpay-verify-token
+      - key: EVOLUTION_API_URL
+        value: ""
+      - key: EVOLUTION_API_KEY
+        value: ""
+
+  # ── Frontend (React SPA — Static Site) ──────────────────────────────────────
+  - type: web
+    name: crm-xpay-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: crm-xpay-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+# ── PostgreSQL ─────────────────────────────────────────────────────────────────
+databases:
+  - name: crm-xpay-db
+    databaseName: crm_xpay
+    plan: free
+    region: oregon
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+# Nota: Redis no plano free do Render expira após 90 dias sem uso.
+# Usado para filas de jobs (Bull). Remova se não for usar campanhas/filas.
+  - type: redis
+    name: crm-xpay-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: allkeys-lru

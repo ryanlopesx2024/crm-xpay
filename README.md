@@ -359,6 +359,52 @@ crm-xpay/
 
 ---
 
+## 🚀 Deploy no Render (produção)
+
+O projeto está pronto para subir no [Render](https://render.com) com **1 clique** via Blueprint.
+
+### Passo a passo
+
+**1. Fork / conecte o repositório**
+- Acesse [render.com](https://render.com) → New → Blueprint
+- Conecte este repositório GitHub
+
+**2. O Render vai criar automaticamente:**
+| Serviço | Tipo | Plano |
+|---|---|---|
+| `crm-xpay-backend` | Web Service (Node.js) | Free |
+| `crm-xpay-frontend` | Static Site (React) | Free |
+| `crm-xpay-db` | PostgreSQL | Free |
+| `crm-xpay-redis` | Redis | Free |
+
+**3. Após o primeiro deploy, ajuste no painel do Render:**
+- `crm-xpay-backend` → Environment → `FRONTEND_URL` = URL real do frontend
+
+**4. Variáveis opcionais (WhatsApp, Evolution API):**
+```
+EVOLUTION_API_URL=https://sua-evolution-api.com
+EVOLUTION_API_KEY=sua_chave
+WHATSAPP_TOKEN=seu_token_meta
+```
+
+### Processo de build
+
+```
+Backend:  npm install → prisma generate → tsc → prisma db push → node dist/index.js
+Frontend: npm install → tsc → vite build → deploy static
+```
+
+### URLs após deploy
+```
+Frontend:  https://crm-xpay-frontend.onrender.com
+Backend:   https://crm-xpay-backend.onrender.com
+Health:    https://crm-xpay-backend.onrender.com/health
+```
+
+> **Nota sobre o plano free do Render:** Os serviços entram em sleep após 15 min sem uso. Para produção contínua, considere o plano Starter (US$ 7/mês por serviço).
+
+---
+
 ## 📄 Licença
 
 Este projeto está licenciado sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.

@@ -73,31 +73,37 @@ async function handleEvolutionEvent(body: any): Promise<void> {
   }
 
   // ── MESSAGES UPSERT ────────────────────────────────────────────────────
-  if (event !== 'messages.upsert' && event !== 'MESSAGES_UPSERT') return;
+  if (event.toLowerCase().replace('_', '.') !== 'messages.upsert') return;
 
-  // Log para debug da estrutura do payload
-  console.log('[Evolution webhook] body.data:', JSON.stringify(body.data, null, 2).slice(0, 500));
+  // Log completo do payload para debug
+  console.log('[Evolution webhook] FULL body:', JSON.stringify(body).slice(0, 800));
 
   // Evolution v2 pode enviar array de mensagens em body.data
   const rawData = body.data;
   const messages: any[] = Array.isArray(rawData) ? rawData : [rawData];
 
   for (const data of messages) {
-    if (!data?.key) continue;
+    if (!data?.key) { console.log('[Evolution webhook] sem data.key, pulando'); continue; }
     // Ignora mensagens enviadas por nós
-    if (data.key.fromMe) continue;
+    if (data.key.fromMe) { console.log('[Evolution webhook] fromMe=true, pulando'); continue; }
 
     const phone = (data.key.remoteJid as string)
       ?.replace('@s.whatsapp.net', '')
       ?.replace('@g.us', '');
     if (!phone) continue;
 
-    // Busca o canal pelo identifier (nome da instância Evolution)
-    const channel = await prisma.channelInstance.findFirst({
-      where: { identifier: instanceName, type: 'WHATSAPP_EVOLUTION' },
+    // Busca o canal pelo identifier (exact first, then case-insensitive fallback)
+    let channel = await prisma.channelInstance.findFirst({
+      where: { type: 'WHATSAPP_EVOLUTION', identifier: instanceName },
     });
     if (!channel) {
-      console.warn(`[Evolution webhook] Canal não encontrado para instância: ${instanceName}`);
+      const all = await prisma.channelInstance.findMany({ where: { type: 'WHATSAPP_EVOLUTION' } });
+      channel = all.find(c => c.identifier.toLowerCase() === instanceName.toLowerCase()) || null;
+    }
+    if (!channel) {
+      // Tenta listar todos os canais para debug
+      const allChannels = await prisma.channelInstance.findMany({ where: { type: 'WHATSAPP_EVOLUTION' }, select: { identifier: true, id: true } });
+      console.warn(`[Evolution webhook] Canal não encontrado para instância: "${instanceName}". Canais cadastrados:`, JSON.stringify(allChannels));
       continue;
     }
 

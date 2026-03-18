@@ -18,7 +18,7 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: BACKEND_URL
-        value: https://crm-xpay-backend.onrender.com
+        value: https://crm-xpay-9.onrender.com
       - key: FRONTEND_URL
         value: https://crm-xpay-frontend.onrender.com
       - key: WHATSAPP_WEBHOOK_VERIFY_TOKEN
@@ -40,5 +40,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://crm-xpay-backend.onrender.com
-
+        value: https://crm-xpay-9.onrender.com

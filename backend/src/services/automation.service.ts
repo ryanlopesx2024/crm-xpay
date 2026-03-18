@@ -1,4 +1,4 @@
-import { prisma } from '../index';
+import { prisma, io } from '../index';
 import { sendEvolutionMessage, parseChannelConfig, getCredsFromConfig } from './evolution.service';
 import axios from 'axios';
 
@@ -120,8 +120,8 @@ async function executeAction(
             await sendEvolutionMessage(channel.identifier, lead.phone, text, creds);
           }
 
-          // Save to DB
-          await prisma.message.create({
+          // Save to DB and emit to chat
+          const savedMsg = await prisma.message.create({
             data: {
               conversationId: conv.id,
               leadId: lead.id,
@@ -131,6 +131,9 @@ async function executeAction(
               automationId: null,
             },
           });
+          // Emit to open chat window
+          io.to(`conv_${conv.id}`).emit('new_message', savedMsg);
+          io.to(lead.companyId).emit('conversation_updated', { conversationId: conv.id, lastMessage: savedMsg });
         }
         await prisma.conversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } });
         log.push({ step: log.length, nodeId: node.id, action: 'SEND_MESSAGE', to: lead.phone, ts: new Date().toISOString() });

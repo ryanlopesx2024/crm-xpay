@@ -92,6 +92,39 @@ export const deleteAutomation = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+export const listExecutions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { automationId, limit = '50' } = req.query;
+    const where: Record<string, unknown> = {
+      automation: { companyId: req.companyId },
+    };
+    if (automationId) where.automationId = automationId;
+
+    const executions = await prisma.automationExecution.findMany({
+      where,
+      orderBy: { startedAt: 'desc' },
+      take: parseInt(limit as string),
+      include: { automation: { select: { id: true, name: true } } },
+    });
+
+    // Fetch lead names
+    const leadIds = [...new Set(executions.map((e) => e.leadId))];
+    const leads = leadIds.length > 0
+      ? await prisma.lead.findMany({ where: { id: { in: leadIds } }, select: { id: true, name: true, phone: true } })
+      : [];
+    const leadMap = new Map(leads.map((l) => [l.id, l]));
+
+    res.json(executions.map((e) => ({
+      ...e,
+      log: typeof e.log === 'string' ? JSON.parse(e.log) : e.log,
+      lead: leadMap.get(e.leadId) || { id: e.leadId, name: 'Lead removido', phone: '' },
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar histórico' });
+  }
+};
+
 export const executeAutomation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

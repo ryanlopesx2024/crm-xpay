@@ -7,6 +7,7 @@ import {
   toggleAutomation,
   deleteAutomation,
   executeAutomation,
+  listExecutions,
 } from '../controllers/automations.controller';
 
 const router = Router();
@@ -14,6 +15,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', listAutomations);
+router.get('/executions', listExecutions);
 router.post('/', createAutomation);
 router.put('/:id', updateAutomation);
 router.put('/:id/toggle', toggleAutomation);

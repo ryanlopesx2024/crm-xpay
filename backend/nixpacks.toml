@@ -1,10 +1,7 @@
-[variables]
-DATABASE_URL = "postgresql://x:x@localhost/x"
-
 [phases.build]
 cmds = [
   "npm install",
-  "npx prisma generate",
+  "DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate",
   "npm run build"
 ]
 

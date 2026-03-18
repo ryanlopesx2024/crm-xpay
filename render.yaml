@@ -12,9 +12,7 @@ services:
       - key: PORT
         value: 3001
       - key: DATABASE_URL
-        fromDatabase:
-          name: crm-xpay-db
-          property: connectionString
+        value: postgresql://crm_xpay_db_user:xaAf6HXpJdFZ33AagiDqQrW8zF78MtC5@dpg-d6t2n0aa214c73canmf0-a/crm_xpay_db
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -44,8 +42,3 @@ services:
       - key: VITE_API_URL
         value: https://crm-xpay-backend.onrender.com
 
-databases:
-  - name: crm-xpay-db
-    databaseName: crm_xpay
-    plan: free
-    region: oregon

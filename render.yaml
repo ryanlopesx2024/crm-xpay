@@ -1,8 +1,4 @@
-## CRM XPAY — Render Blueprint
-
 services:
-
-  # ── Backend (Node.js via Nixpacks) ───────────────────────────────────────────
   - type: web
     name: crm-xpay-backend
     runtime: node
@@ -11,7 +7,6 @@ services:
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npx prisma db push --accept-data-loss && node dist/index.js
     healthCheckPath: /health
-    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
@@ -36,21 +31,12 @@ services:
       - key: EVOLUTION_API_KEY
         value: ""
 
-  # ── Frontend (Static Site) ────────────────────────────────────────────────────
   - type: static
     name: crm-xpay-frontend
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    autoDeploy: true
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: no-cache
-      - path: /assets/*
-        name: Cache-Control
-        value: public, max-age=31536000, immutable
     routes:
       - type: rewrite
         source: /*
@@ -59,7 +45,6 @@ services:
       - key: VITE_API_URL
         value: https://crm-xpay-backend.onrender.com
 
-# ── PostgreSQL ─────────────────────────────────────────────────────────────────
 databases:
   - name: crm-xpay-db
     databaseName: crm_xpay

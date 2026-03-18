@@ -76,7 +76,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     let estimatedDelivery: string | null = null;
 
     try {
-      const queryFn = await import('./tracking-query').catch(() => null);
+      const queryFn = await import('./tracking-query' as string).catch(() => null);
       if (queryFn) {
         const result = await queryFn.queryCarrierPublic(code, carrier);
         status = result.status;

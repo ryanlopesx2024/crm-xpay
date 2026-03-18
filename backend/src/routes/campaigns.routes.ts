@@ -90,7 +90,7 @@ router.put('/:id', (req: AuthRequest, res: Response): void => {
     if (idx === -1) { res.status(404).json({ error: 'Não encontrado' }); return; }
     const allowed = ['name', 'status', 'targetType', 'targetIds', 'targetCount', 'message', 'connectionId', 'delay', 'scheduledAt'] as const;
     for (const key of allowed) {
-      if (req.body[key] !== undefined) (data[idx] as Record<string, unknown>)[key] = req.body[key];
+      if (req.body[key] !== undefined) (data[idx] as unknown as Record<string, unknown>)[key] = req.body[key];
     }
     data[idx].updatedAt = new Date().toISOString();
     writeData(data);

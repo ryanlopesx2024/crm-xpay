@@ -283,7 +283,7 @@ export const createDealActivity = async (req: AuthRequest, res: Response): Promi
         title,
         description: description || null,
         dueDate: dueDate ? new Date(dueDate) : null,
-        assignedUserId: req.user?.id || null,
+        assignedUserId: req.userId || null,
       },
       include: { type: true, assignedUser: { select: { id: true, name: true } } },
     });

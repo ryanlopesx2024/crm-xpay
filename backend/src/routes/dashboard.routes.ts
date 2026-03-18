@@ -115,7 +115,7 @@ router.get('/negocios', async (req: AuthRequest, res: Response) => {
       .slice(0, 10);
 
     // By product
-    const prodMap = new Map<string, { name: string; sku: string; count: number; value: number; won: number }>();
+    const prodMap = new Map<string, { name: string; sku?: string; category?: string; count: number; value: number; won: number }>();
     for (const d of deals) {
       if (!d.productId) continue;
       const key = d.productId;

@@ -269,9 +269,14 @@ export async function triggerAutomation(
       try {
         const trigger = typeof a.trigger === 'string' ? JSON.parse(a.trigger) : a.trigger;
         if (trigger?.type !== triggerType) return false;
-        // TAG_ADDED: only fire if no specific tag filter, or tag name matches
+        // TAG_ADDED: filter by specific tag name if set
         if (triggerType === 'TAG_ADDED' && trigger.tagName && metadata.tagName) {
           return String(trigger.tagName).toLowerCase() === String(metadata.tagName).toLowerCase();
+        }
+        // DEAL_WON / DEAL_LOST: filter by pipeline/stage if set
+        if ((triggerType === 'DEAL_WON' || triggerType === 'DEAL_LOST')) {
+          if (trigger.pipelineId && metadata.pipelineId && trigger.pipelineId !== metadata.pipelineId) return false;
+          if (trigger.stageId && metadata.stageId && trigger.stageId !== metadata.stageId) return false;
         }
         return true;
       } catch { return false; }

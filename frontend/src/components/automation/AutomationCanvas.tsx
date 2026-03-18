@@ -169,6 +169,13 @@ function CanvasInner({ automation, onSave, onToggle, onDelete }: AutomationCanva
     setTimeout(pushHistory, 0);
   }, [setNodes, pushHistory]);
 
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((ed) => ed.source !== nodeId && ed.target !== nodeId));
+    setSelectedNode(null);
+    setTimeout(pushHistory, 0);
+  }, [setNodes, setEdges, pushHistory]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -349,6 +356,7 @@ function CanvasInner({ automation, onSave, onToggle, onDelete }: AutomationCanva
             node={selectedNode as { id: string; type: string; data: Record<string, unknown> }}
             onClose={() => setSelectedNode(null)}
             onSave={handleSaveNodeConfig}
+            onDeleteNode={handleDeleteNode}
           />
         )}
       </div>

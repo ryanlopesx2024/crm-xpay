@@ -187,13 +187,16 @@ function ContentItemCard({ item, onChange, onDelete }: {
 }
 
 // ── ConfigPanel ──────────────────────────────────────────────────────────────
+interface Pipeline { id: string; name: string; stages: { id: string; name: string; order: number }[] }
+
 interface ConfigPanelProps {
   node: { id: string; type: string; data: Record<string, unknown> } | null;
   onClose: () => void;
   onSave: (nodeId: string, data: Record<string, unknown>) => void;
+  onDeleteNode?: (nodeId: string) => void;
 }
 
-export default function ConfigPanel({ node, onClose, onSave }: ConfigPanelProps) {
+export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: ConfigPanelProps) {
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [showPicker, setShowPicker] = useState(false);
@@ -202,11 +205,13 @@ export default function ConfigPanel({ node, onClose, onSave }: ConfigPanelProps)
   const [channels, setChannels] = useState<{ id: string; name: string; identifier: string; status: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
 
   useEffect(() => {
     api.get('/api/channels').then(r => setChannels(r.data || [])).catch(() => {});
     api.get('/api/tags').then(r => setTags(r.data?.tags || r.data || [])).catch(() => {});
     api.get('/api/users').then(r => setUsers(r.data?.users || r.data || [])).catch(() => {});
+    api.get('/api/pipelines').then(r => setPipelines(r.data || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -378,6 +383,31 @@ export default function ConfigPanel({ node, onClose, onSave }: ConfigPanelProps)
               </div>
             )}
 
+            {action === 'MOVE_PIPELINE' && (() => {
+              const selectedPipelineId = String(formData.pipelineId || '');
+              const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
+              return (
+                <>
+                  <div>
+                    <p className={labelClass}>Pipeline</p>
+                    <select value={selectedPipelineId} onChange={(e) => { update('pipelineId', e.target.value); update('stageId', ''); }} className={fieldClass}>
+                      <option value="">— Selecione o pipeline —</option>
+                      {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  {selectedPipeline && (
+                    <div>
+                      <p className={labelClass}>Etapa de destino</p>
+                      <select value={String(formData.stageId || '')} onChange={(e) => update('stageId', e.target.value)} className={fieldClass}>
+                        <option value="">— Selecione a etapa —</option>
+                        {selectedPipeline.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
             {action === 'HTTP_REQUEST' && (
               <>
                 <div>
@@ -422,6 +452,33 @@ export default function ConfigPanel({ node, onClose, onSave }: ConfigPanelProps)
                 <p className="text-[9px] text-slate-400 mt-1">Se vazio, dispara para qualquer tag adicionada.</p>
               </div>
             )}
+
+            {/* DEAL_WON / DEAL_LOST: filter by pipeline */}
+            {(formData.type === 'DEAL_WON' || formData.type === 'DEAL_LOST') && (() => {
+              const selectedPipelineId = String(formData.pipelineId || '');
+              const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
+              return (
+                <>
+                  <div>
+                    <p className={labelClass}>Pipeline específico <span className="text-slate-400 font-normal">(opcional)</span></p>
+                    <select value={selectedPipelineId} onChange={(e) => { update('pipelineId', e.target.value); update('stageId', ''); }} className={fieldClass}>
+                      <option value="">— Qualquer pipeline —</option>
+                      {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <p className="text-[9px] text-slate-400 mt-1">Se vazio, dispara para negócios em qualquer pipeline.</p>
+                  </div>
+                  {selectedPipeline && (
+                    <div>
+                      <p className={labelClass}>Etapa específica <span className="text-slate-400 font-normal">(opcional)</span></p>
+                      <select value={String(formData.stageId || '')} onChange={(e) => update('stageId', e.target.value)} className={fieldClass}>
+                        <option value="">— Qualquer etapa —</option>
+                        {selectedPipeline.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <div>
               <p className={labelClass}>Nome do bloco</p>
@@ -485,11 +542,17 @@ export default function ConfigPanel({ node, onClose, onSave }: ConfigPanelProps)
       </div>
 
       {/* Footer */}
-      <div className="border-t border-slate-100 dark:border-slate-700 p-4 flex-shrink-0">
+      <div className="border-t border-slate-100 dark:border-slate-700 p-4 flex-shrink-0 space-y-2">
         <button onClick={handleSave} style={{ backgroundColor: '#00A34D' }}
           className="w-full flex items-center justify-center gap-2 py-2.5 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm">
           <Save size={14} /> Salvar
         </button>
+        {onDeleteNode && (
+          <button onClick={() => { onDeleteNode(node.id); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 py-2 text-red-500 text-xs font-medium rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border border-red-200 dark:border-red-800">
+            <Trash2 size={13} /> Deletar bloco
+          </button>
+        )}
       </div>
     </div>
   );

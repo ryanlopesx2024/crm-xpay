@@ -212,7 +212,7 @@ export const wonDeal = async (req: AuthRequest, res: Response): Promise<void> =>
     io.to(req.companyId!).emit('deal_updated', deal);
     res.json(deal);
 
-    triggerAutomation(req.companyId!, 'DEAL_WON', deal.leadId, { dealId: id }).catch(() => {});
+    triggerAutomation(req.companyId!, 'DEAL_WON', deal.leadId, { dealId: id, pipelineId: deal.pipelineId, stageId: deal.stageId }).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao marcar negocio como ganho' });
@@ -246,7 +246,7 @@ export const lostDeal = async (req: AuthRequest, res: Response): Promise<void> =
     io.to(req.companyId!).emit('deal_updated', deal);
     res.json(deal);
 
-    triggerAutomation(req.companyId!, 'DEAL_LOST', deal.leadId, { dealId: id }).catch(() => {});
+    triggerAutomation(req.companyId!, 'DEAL_LOST', deal.leadId, { dealId: id, pipelineId: deal.pipelineId, stageId: deal.stageId }).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao marcar negocio como perdido' });

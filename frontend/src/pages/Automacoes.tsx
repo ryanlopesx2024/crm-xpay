@@ -26,7 +26,11 @@ function HistoryPanel({ automationId, onClose }: { automationId?: string; onClos
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [automationId]);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, [automationId]); // eslint-disable-line
 
   const statusIcon = (status: string) => {
     if (status === 'COMPLETED') return <CheckCircle2 size={14} className="text-emerald-500" />;
@@ -164,7 +168,11 @@ export default function Automacoes() {
   const [confirmDelete, setConfirmDelete] = useState<Automation | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
-  useEffect(() => { fetchAutomations(); }, [fetchAutomations]);
+  useEffect(() => {
+    fetchAutomations();
+    const interval = setInterval(fetchAutomations, 30000);
+    return () => clearInterval(interval);
+  }, [fetchAutomations]);
 
   const grouped = useMemo(() => {
     const filtered = automations.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));

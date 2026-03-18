@@ -48,7 +48,12 @@ export default function Automacoes() {
 
   const handleSaveFlow = async (flow: { nodes: unknown[]; edges: unknown[] }) => {
     if (!selected) return;
-    const updated = await updateAutomation(selected.id, { flow: flow as Automation['flow'] });
+    // Sync trigger type from the trigger node to automation.trigger (used by execution engine)
+    const triggerNode = flow.nodes.find((n: any) => n.type === 'trigger') as any;
+    const trigger = triggerNode?.data?.type
+      ? { type: triggerNode.data.type, tagName: triggerNode.data.tagName || undefined }
+      : selected.trigger;
+    const updated = await updateAutomation(selected.id, { flow: flow as Automation['flow'], trigger } as any);
     setSelected(updated);
   };
 

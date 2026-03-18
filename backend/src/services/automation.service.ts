@@ -72,13 +72,13 @@ async function executeAction(
   log: any[],
 ): Promise<null> {
   const data = node.data || {};
-  const actionType: string = data.actionType || data.type || '';
+  const actionType: string = data.actionType || data.action || '';
 
   try {
     switch (actionType) {
 
       case 'SEND_MESSAGE': {
-        const items: any[] = data.items || data.content || [];
+        const items: any[] = data.items || data.contents || data.content || [];
         const connectionId: string = data.connectionId || data.connection || '';
 
         // Find the channel to use
@@ -110,6 +110,7 @@ async function executeAction(
             if (ms <= 30000) await new Promise((r) => setTimeout(r, ms));
             continue;
           }
+          if (item.type && item.type !== 'text') continue; // skip non-text items (delay handled above)
           const rawText: string = item.text || item.value || item.content || '';
           if (!rawText) continue;
           const text = interpolate(rawText, vars);
@@ -157,7 +158,7 @@ async function executeAction(
       }
 
       case 'ASSIGN_AGENT': {
-        const userId: string = data.userId || data.agentId || '';
+        const userId: string = data.userId || data.agentId || data.agent || '';
         if (!userId) break;
         // Assign to open conversation
         await prisma.conversation.updateMany({
@@ -264,7 +265,12 @@ export async function triggerAutomation(
     const matching = automations.filter((a) => {
       try {
         const trigger = typeof a.trigger === 'string' ? JSON.parse(a.trigger) : a.trigger;
-        return trigger?.type === triggerType;
+        if (trigger?.type !== triggerType) return false;
+        // TAG_ADDED: only fire if no specific tag filter, or tag name matches
+        if (triggerType === 'TAG_ADDED' && trigger.tagName && metadata.tagName) {
+          return String(trigger.tagName).toLowerCase() === String(metadata.tagName).toLowerCase();
+        }
+        return true;
       } catch { return false; }
     });
 

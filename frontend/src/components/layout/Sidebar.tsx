@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutGrid,
@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useConversationStore } from '../../stores/conversationStore';
+import { useSocketEvent } from '../../hooks/useSocket';
 import Avatar from '../shared/Avatar';
 
 const navItems = [
@@ -39,6 +41,31 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { unreadCount } = useNotificationStore();
   const location = useLocation();
+  const { conversations } = useConversationStore();
+
+  // Badge: conta conversas pendentes ou com mensagem não lida
+  const [extraPending, setExtraPending] = useState(0);
+
+  // Quando chega nova conversa (não estamos na página de atendimento)
+  useSocketEvent<{ conversation: any; message: any }>('new_conversation', () => {
+    if (!location.pathname.startsWith('/atendimento')) {
+      setExtraPending((n) => n + 1);
+    }
+  });
+  useSocketEvent<{ conversationId: string; message: any }>('new_incoming_message', () => {
+    if (!location.pathname.startsWith('/atendimento')) {
+      setExtraPending((n) => n + 1);
+    }
+  });
+
+  // Ao entrar em /atendimento, zera o extra
+  useEffect(() => {
+    if (location.pathname.startsWith('/atendimento')) {
+      setExtraPending(0);
+    }
+  }, [location.pathname]);
+
+  const pendingCount = conversations.filter((c) => c.status === 'PENDING').length + extraPending;
 
   return (
     <div className="w-14 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-md flex flex-col items-center py-3 flex-shrink-0 z-20">
@@ -51,6 +78,8 @@ export default function Sidebar() {
       <nav className="flex flex-col items-center gap-1 flex-1">
         {navItems.map(({ to, icon: Icon, label, exact }) => {
           const isActive = exact ? location.pathname === to : location.pathname.startsWith(to);
+          const isAtendimento = to === '/atendimento';
+          const badge = isAtendimento && pendingCount > 0 ? pendingCount : 0;
           return (
             <NavLink
               key={to}
@@ -66,6 +95,11 @@ export default function Sidebar() {
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-brand-600 dark:bg-brand-400 rounded-r-full" />
               )}
               <Icon size={20} />
+              {badge > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse-soft">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
             </NavLink>
           );
         })}

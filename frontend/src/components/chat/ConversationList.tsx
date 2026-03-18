@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Search, SlidersHorizontal, MoreHorizontal, X, CheckSquare,
   ChevronDown, ChevronRight, Filter, Trash2, UserCheck,
-  ArrowRight, Play, Check, Bell, Settings, MessageSquare, Clock, BellOff,
+  ArrowRight, Play, Check, Bell, Settings, MessageSquare, Clock, BellOff, Plus,
 } from 'lucide-react';
 import { differenceInMinutes, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +21,7 @@ interface ConversationListProps {
   onBulkFinish?: (ids: string[]) => void;
   onBulkTransferAgent?: (ids: string[], userId: string) => void;
   onBulkTransferDept?: (ids: string[], deptId: string) => void;
+  onNewConversation?: () => void;
 }
 
 interface ListFilters {
@@ -40,7 +41,7 @@ const emptyFilters: ListFilters = {
 
 export default function ConversationList({
   conversations, activeId, onSelect, loading,
-  onBulkFinish, onBulkTransferAgent, onBulkTransferDept,
+  onBulkFinish, onBulkTransferAgent, onBulkTransferDept, onNewConversation,
 }: ConversationListProps) {
   const { user } = useAuthStore();
   const [search, setSearch] = useState('');
@@ -185,6 +186,16 @@ export default function ConversationList({
               )}
             </div>
             <div className="flex items-center gap-1">
+              {/* Nova conversa */}
+              {onNewConversation && (
+                <button
+                  onClick={onNewConversation}
+                  title="Nova conversa"
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                >
+                  <Plus size={13} className="text-slate-500 dark:text-slate-400" />
+                </button>
+              )}
               {/* Bell */}
               <div ref={bellRef} className="relative">
                 <button

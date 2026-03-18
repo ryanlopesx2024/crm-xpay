@@ -18,7 +18,8 @@ export function getSocket(userId?: string, companyId?: string): Socket {
       } catch {}
     }
 
-    socket = io('http://localhost:3001', {
+    const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+    socket = io(backendUrl, {
       auth: { token, userId: uid, companyId: cid },
       transports: ['websocket'],
       autoConnect: true,

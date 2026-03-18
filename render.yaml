@@ -1,6 +1,9 @@
-## XPAY CRM — Render Infrastructure as Code
-## Deploy automático: conecte este repo no Render e clique em "Apply"
-## Docs: https://render.com/docs/blueprint-spec
+## CRM XPAY — Render Blueprint
+## Como usar:
+##   1. Suba o código no GitHub (repo privado ou público)
+##   2. render.com → New → Blueprint → aponte para o repo
+##   3. Render cria backend + frontend + banco automaticamente
+##   4. Após deploy, veja a URL do backend e atualize BACKEND_URL e VITE_API_URL
 
 services:
 
@@ -23,26 +26,18 @@ services:
         fromDatabase:
           name: crm-xpay-db
           property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: crm-xpay-redis
-          type: redis
-          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      # URL pública do backend (Render gera automaticamente como crm-xpay-backend.onrender.com)
       - key: BACKEND_URL
-        fromService:
-          name: crm-xpay-backend
-          type: web
-          property: host
-          envVarKey: BACKEND_URL
-      # Preencha manualmente no painel do Render após o primeiro deploy:
+        value: https://crm-xpay-backend.onrender.com
       - key: FRONTEND_URL
         value: https://crm-xpay-frontend.onrender.com
       - key: WHATSAPP_WEBHOOK_VERIFY_TOKEN
         value: xpay-verify-token
+      # Preenchido pelo cliente após conectar a Evolution deles
       - key: EVOLUTION_API_URL
         value: ""
       - key: EVOLUTION_API_KEY
@@ -70,10 +65,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: crm-xpay-backend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://crm-xpay-backend.onrender.com
 
 # ── PostgreSQL ─────────────────────────────────────────────────────────────────
 databases:
@@ -81,12 +73,3 @@ databases:
     databaseName: crm_xpay
     plan: free
     region: oregon
-
-# ── Redis ─────────────────────────────────────────────────────────────────────
-# Nota: Redis no plano free do Render expira após 90 dias sem uso.
-# Usado para filas de jobs (Bull). Remova se não for usar campanhas/filas.
-  - type: redis
-    name: crm-xpay-redis
-    plan: free
-    region: oregon
-    maxmemoryPolicy: allkeys-lru

@@ -40,19 +40,27 @@ export const prisma = new PrismaClient();
 const app = express();
 const httpServer = createServer(app);
 
-export const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true,
-  },
-});
+// Permite múltiplas origens: frontend local + produção Render + qualquer onrender.com
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  /\.onrender\.com$/,
+].filter(Boolean);
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => {
+    if (!origin) return cb(null, true); // server-to-server, webhooks
+    const ok = allowedOrigins.some((o) =>
+      o instanceof RegExp ? o.test(origin) : o === origin
+    );
+    cb(ok ? null : new Error(`CORS: origin ${origin} not allowed`), ok);
+  },
+  credentials: true,
+};
+
+export const io = new Server(httpServer, { cors: corsOptions });
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 

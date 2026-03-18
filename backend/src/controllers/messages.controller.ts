@@ -1,7 +1,8 @@
 import { Response } from 'express';
 import { prisma, io } from '../index';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { sendEvolutionMessage } from '../services/evolution.service';
+import { sendEvolutionMessage, parseChannelConfig, getCredsFromConfig } from '../services/evolution.service';
+import { sendCloudTextMessage, getCloudCredsFromConfig } from '../services/whatsapp-cloud.service';
 
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -44,13 +45,37 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
 
     res.status(201).json(message);
 
-    // Forward to WhatsApp via Evolution API (after response, non-blocking)
+    // Envia via API do canal (non-blocking, após resposta)
     const ch = conversation.channelInstance;
     const lead = conversation.lead;
-    if (ch?.type === 'WHATSAPP_UNOFFICIAL' && lead?.phone && (type === 'TEXT' || !type) && content) {
-      sendEvolutionMessage(ch.identifier, lead.phone, content).catch((err) =>
-        console.error('Evolution send error:', err.message)
-      );
+    console.log('[sendMessage] ch.type=%s ch.identifier=%s lead.phone=%s type=%s', ch?.type, ch?.identifier, lead?.phone, type);
+
+    if (ch && lead?.phone && (type === 'TEXT' || !type) && content) {
+      const phone = lead.phone;
+      if (ch.type === 'WHATSAPP_EVOLUTION') {
+        const cfg = parseChannelConfig(ch.config);
+        const creds = getCredsFromConfig(cfg);
+        console.log('[sendMessage] Evolution creds url=%s key=%s', creds.url, creds.key ? '***' : 'EMPTY');
+        if (creds.url && creds.key) {
+          sendEvolutionMessage(ch.identifier, phone, content, creds).catch((err) =>
+            console.error('[sendMessage] Evolution error:', err?.response?.data || err.message)
+          );
+        } else {
+          console.warn('[sendMessage] Evolution: URL ou KEY vazia, não enviando');
+        }
+      } else if (ch.type === 'WHATSAPP_CLOUD' || ch.type === 'WHATSAPP_CLOUD_MANUAL') {
+        const cfg = JSON.parse(ch.config || '{}');
+        const creds = getCloudCredsFromConfig(cfg);
+        if (creds.phoneNumberId && creds.accessToken) {
+          sendCloudTextMessage(phone, content, creds).catch((err) =>
+            console.error('[sendMessage] Cloud API error:', err.message)
+          );
+        }
+      } else {
+        console.warn('[sendMessage] Tipo de canal desconhecido ou sem canal: %s', ch?.type);
+      }
+    } else {
+      console.warn('[sendMessage] Não enviou via API: ch=%s phone=%s type=%s content=%s', !!ch, lead?.phone, type, !!content);
     }
   } catch (err) {
     console.error(err);

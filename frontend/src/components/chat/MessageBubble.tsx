@@ -43,9 +43,12 @@ export default function MessageBubble({ message, showSender }: MessageBubbleProp
         className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm ${
           isOut
             ? 'rounded-br-sm'
-            : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-100 dark:border-slate-700'
+            : 'rounded-bl-sm'
         }`}
-        style={isOut ? { backgroundColor: '#00A34D', color: '#ffffff' } : undefined}
+        style={isOut
+          ? { backgroundColor: '#00A34D', color: '#ffffff' }
+          : { backgroundColor: '#e2e8f0', color: '#0f172a' }
+        }
       >
         {/* AUDIO */}
         {message.type === 'AUDIO' && (
@@ -100,8 +103,8 @@ export default function MessageBubble({ message, showSender }: MessageBubbleProp
 
         {/* Footer */}
         <div
-          className={`flex items-center justify-end gap-1 mt-0.5 ${isOut ? '' : 'text-slate-400 dark:text-slate-500'}`}
-          style={isOut ? { color: 'rgba(255,255,255,0.65)' } : undefined}
+          className="flex items-center justify-end gap-1 mt-0.5"
+          style={{ color: isOut ? 'rgba(255,255,255,0.65)' : '#64748b' }}
         >
           <span className="text-[10px]">{time}</span>
           {isOut && (

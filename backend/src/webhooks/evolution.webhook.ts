@@ -3,60 +3,89 @@ import { prisma, io } from '../index';
 
 const router = Router();
 
+// Log ALL incoming requests (debug)
+router.use((req: Request, _res, next) => {
+  console.log(`[Evolution webhook] ← ${req.method} ${req.path} body=${JSON.stringify(req.body).slice(0, 200)}`);
+  next();
+});
+
 // ── GET /webhooks/evolution/ping  →  verifica se o webhook é acessível ────────
 router.get('/ping', (_req: Request, res: Response) => {
   res.json({ ok: true, timestamp: new Date().toISOString(), service: 'evolution-webhook' });
 });
 
-// Evolution API envia todos os eventos no mesmo endpoint
-router.post('/', async (req: Request, res: Response) => {
-  // Responde imediatamente para não timeout
-  res.status(200).json({ status: 'ok' });
+// ── Handler principal (extrai evento + instância e processa) ──────────────────
+async function handleEvolutionEvent(body: any): Promise<void> {
+  const event: string = body.event || '';
+  const instanceName: string = body.instance || '';
 
-  try {
-    const body = req.body;
-    const event: string = body.event || '';
-    const instanceName: string = body.instance || '';
+  console.log(`[Evolution webhook] event=${event} instance=${instanceName}`);
 
-    console.log(`[Evolution webhook] event=${event} instance=${instanceName}`);
+  // ── CONNECTION UPDATE ──────────────────────────────────────────────────
+  if (event === 'connection.update' || event === 'CONNECTION_UPDATE') {
+    const state: string = body.data?.state || '';
+    let newStatus = 'DISCONNECTED';
+    if (state === 'open') newStatus = 'CONNECTED';
+    else if (state === 'connecting') newStatus = 'CONNECTING';
+    else if (state === 'close') newStatus = 'DISCONNECTED';
 
-    // ── CONNECTION UPDATE ──────────────────────────────────────────────────
-    if (event === 'connection.update') {
-      const state: string = body.data?.state || '';
-      let newStatus = 'DISCONNECTED';
-      if (state === 'open') newStatus = 'CONNECTED';
-      else if (state === 'connecting') newStatus = 'CONNECTING';
-      else if (state === 'close') newStatus = 'DISCONNECTED';
-
-      const channel = await prisma.channelInstance.findFirst({
-        where: { identifier: instanceName, type: 'WHATSAPP_EVOLUTION' },
+    const channel = await prisma.channelInstance.findFirst({
+      where: { identifier: instanceName, type: 'WHATSAPP_EVOLUTION' },
+    });
+    if (channel) {
+      await prisma.channelInstance.update({
+        where: { id: channel.id },
+        data: { status: newStatus },
       });
-      if (channel) {
-        await prisma.channelInstance.update({
-          where: { id: channel.id },
-          data: { status: newStatus },
-        });
-        io.to(channel.companyId).emit('channel_status_updated', {
-          channelId: channel.id,
-          status: newStatus,
-        });
-        console.log(`[Evolution webhook] channel ${instanceName} → ${newStatus}`);
+      io.to(channel.companyId).emit('channel_status_updated', {
+        channelId: channel.id,
+        status: newStatus,
+      });
+      console.log(`[Evolution webhook] channel ${instanceName} → ${newStatus}`);
+
+      // Quando conecta, re-registra o webhook com a URL correta (self-healing)
+      if (newStatus === 'CONNECTED') {
+        try {
+          const { parseChannelConfig, getCredsFromConfig } = await import('../services/evolution.service');
+          const axios = (await import('axios')).default;
+          const cfg = parseChannelConfig(channel.config);
+          const creds = getCredsFromConfig(cfg);
+          const backendUrl = process.env.BACKEND_URL || `http://${new URL(creds.url).hostname}:${process.env.PORT || '3001'}`;
+          const webhookUrl = `${backendUrl}/webhooks/evolution`;
+          const api = axios.create({ baseURL: creds.url.replace(/\/$/, ''), headers: { apikey: creds.key }, timeout: 8000 });
+          await api.post(`/webhook/set/${instanceName}`, {
+            enabled: true, url: webhookUrl,
+            webhookByEvents: false, webhookBase64: false,
+            events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
+          });
+          console.log(`[Evolution webhook] auto re-registered webhook → ${webhookUrl}`);
+        } catch (e: any) {
+          console.warn('[Evolution webhook] auto re-register webhook falhou:', e?.message);
+        }
       }
-      return;
     }
+    return;
+  }
 
-    // ── MESSAGES UPSERT ────────────────────────────────────────────────────
-    if (event !== 'messages.upsert') return;
+  // ── MESSAGES UPSERT ────────────────────────────────────────────────────
+  if (event !== 'messages.upsert' && event !== 'MESSAGES_UPSERT') return;
 
-    const data = body.data;
-    if (!data?.key) return;
+  // Log para debug da estrutura do payload
+  console.log('[Evolution webhook] body.data:', JSON.stringify(body.data, null, 2).slice(0, 500));
+
+  // Evolution v2 pode enviar array de mensagens em body.data
+  const rawData = body.data;
+  const messages: any[] = Array.isArray(rawData) ? rawData : [rawData];
+
+  for (const data of messages) {
+    if (!data?.key) continue;
     // Ignora mensagens enviadas por nós
-    if (data.key.fromMe) return;
+    if (data.key.fromMe) continue;
 
     const phone = (data.key.remoteJid as string)
       ?.replace('@s.whatsapp.net', '')
       ?.replace('@g.us', '');
-    if (!phone) return;
+    if (!phone) continue;
 
     // Busca o canal pelo identifier (nome da instância Evolution)
     const channel = await prisma.channelInstance.findFirst({
@@ -64,17 +93,24 @@ router.post('/', async (req: Request, res: Response) => {
     });
     if (!channel) {
       console.warn(`[Evolution webhook] Canal não encontrado para instância: ${instanceName}`);
-      return;
+      continue;
     }
 
-    // Extrai conteúdo da mensagem
+    // Extrai conteúdo da mensagem (Evolution v1 e v2)
+    const msg = data.message || data.Message || {};
     const content: string =
-      data.message?.conversation ||
-      data.message?.extendedTextMessage?.text ||
-      data.message?.imageMessage?.caption ||
-      data.message?.videoMessage?.caption ||
-      data.message?.documentMessage?.title ||
+      msg.conversation ||
+      msg.extendedTextMessage?.text ||
+      msg.imageMessage?.caption ||
+      msg.videoMessage?.caption ||
+      msg.documentMessage?.title ||
+      msg.buttonsResponseMessage?.selectedDisplayText ||
+      msg.listResponseMessage?.title ||
+      data.body ||          // alguns eventos colocam direto em body
+      data.text ||
       '';
+
+    console.log('[Evolution webhook] content extraído:', JSON.stringify(content));
 
     const mediaUrl: string =
       data.message?.imageMessage?.url ||
@@ -106,7 +142,6 @@ router.post('/', async (req: Request, res: Response) => {
         },
       });
     } else if (lead.name === lead.phone && pushName !== phone) {
-      // Atualiza nome se era só o número
       lead = await prisma.lead.update({
         where: { id: lead.id },
         data: { name: pushName },
@@ -135,7 +170,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // ── Salva mensagem ────────────────────────────────────────────────────
-    const message = await prisma.message.create({
+    const savedMessage = await prisma.message.create({
       data: {
         conversationId: conversation.id,
         leadId: lead.id,
@@ -158,35 +193,48 @@ router.post('/', async (req: Request, res: Response) => {
     const fullConversation = await prisma.conversation.findUnique({
       where: { id: conversation.id },
       include: {
-        lead: true,
+        lead: { include: { tags: { include: { tag: true } } } },
         channelInstance: true,
         department: true,
-        assignedUser: { select: { id: true, name: true, avatar: true } },
+        assignedUser: { select: { id: true, name: true, avatar: true, status: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
     });
 
-    // Emite para a sala da empresa
     if (isNewConversation) {
-      // Nova conversa → adiciona à lista
       io.to(channel.companyId).emit('new_conversation', {
         conversation: fullConversation,
-        message,
+        message: savedMessage,
       });
     } else {
-      // Conversa existente → atualiza
       io.to(channel.companyId).emit('new_incoming_message', {
         conversationId: conversation.id,
-        message,
+        message: savedMessage,
         lead,
       });
     }
 
-    // Emite para quem está dentro da conversa
-    io.to(`conv_${conversation.id}`).emit('new_message', message);
+    // Emite para quem está dentro da conversa aberta
+    io.to(`conv_${conversation.id}`).emit('new_message', savedMessage);
 
     console.log(`[Evolution webhook] Msg salva: conv=${conversation.id} lead=${lead.name} tipo=${msgType}`);
-  } catch (err) {
+  }
+}
+
+// POST /webhooks/evolution  (byEvents: false — payload único com body.event)
+router.post('/', async (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+  try { await handleEvolutionEvent(req.body); } catch (err) {
     console.error('[Evolution webhook] Erro:', err);
+  }
+});
+
+// POST /webhooks/evolution/:EVENT_NAME  (byEvents: true — cada evento tem sua URL)
+router.post('/:eventName', async (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+  const body = { ...req.body, event: req.params.eventName.toLowerCase().replace('_', '.') };
+  try { await handleEvolutionEvent(body); } catch (err) {
+    console.error('[Evolution webhook] Erro (byEvent):', err);
   }
 });
 

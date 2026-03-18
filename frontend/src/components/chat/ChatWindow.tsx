@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   MoreHorizontal, Paperclip, Smile, Mic, Send,
   UserCheck, ArrowRight, CheckCircle, FileText, X, ChevronRight,
-  ExternalLink, Phone, Square, EyeOff,
+  ExternalLink, Phone, Square, EyeOff, ChevronDown, Zap,
 } from 'lucide-react';
 import { Conversation, Message } from '../../types';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
@@ -44,6 +44,11 @@ export default function ChatWindow({ conversation, onFinish, onUpdate, onHide }:
   const [departments, setDepartments] = useState<{ id: string; name: string; color: string }[]>([]);
   const [finishing, setFinishing] = useState(false);
 
+  // Channel selector
+  const [channels, setChannels] = useState<{ id: string; name: string; identifier: string; type: string }[]>([]);
+  const [showChannelPicker, setShowChannelPicker] = useState(false);
+  const channelPickerRef = useRef<HTMLDivElement>(null);
+
   // Emoji picker
   const [showEmoji, setShowEmoji] = useState(false);
   const emojiRef = useRef<HTMLDivElement>(null);
@@ -59,6 +64,13 @@ export default function ChatWindow({ conversation, onFinish, onUpdate, onHide }:
   const moreRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load connected channels once
+  useEffect(() => {
+    api.get('/api/channels').then(({ data }) => {
+      setChannels((data as any[]).filter((c) => c.status === 'CONNECTED'));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchMessages(conversation.id);
@@ -85,6 +97,7 @@ export default function ChatWindow({ conversation, onFinish, onUpdate, onHide }:
         setShowMoreMenu(false); setShowTransferAgent(false); setShowTransferDept(false);
       }
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
+      if (channelPickerRef.current && !channelPickerRef.current.contains(e.target as Node)) setShowChannelPicker(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -298,6 +311,14 @@ export default function ChatWindow({ conversation, onFinish, onUpdate, onHide }:
     onHide?.(conversation.id);
   };
 
+  const switchChannel = async (channelId: string) => {
+    try {
+      const { data } = await api.put(`/api/conversations/${conversation.id}/channel`, { channelInstanceId: channelId });
+      onUpdate?.(conversation.id, { channelInstance: data.channelInstance, channelInstanceId: data.channelInstanceId });
+    } catch (err) { console.error('Erro ao trocar canal:', err); }
+    setShowChannelPicker(false);
+  };
+
   const lead = conversation.lead;
   const isResolved = conversation.status === 'RESOLVED';
 
@@ -320,11 +341,45 @@ export default function ChatWindow({ conversation, onFinish, onUpdate, onHide }:
           <div className="flex items-center gap-1.5 flex-wrap">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{lead?.name}</p>
             <ExternalLink size={11} className="text-slate-400 flex-shrink-0 cursor-pointer hover:text-brand-500 transition-colors" />
-            {conversation.channelInstance && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 flex-shrink-0">
-                {conversation.channelInstance.name}
-              </span>
-            )}
+
+            {/* Channel selector */}
+            <div ref={channelPickerRef} className="relative flex-shrink-0">
+              <button
+                onClick={() => setShowChannelPicker(!showChannelPicker)}
+                className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/40 transition-colors"
+              >
+                <Zap size={9} />
+                {conversation.channelInstance?.name || 'Sem canal'}
+                <ChevronDown size={9} />
+              </button>
+
+              {showChannelPicker && (
+                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-40 py-1 min-w-[200px]">
+                  <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Trocar canal</p>
+                  {channels.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-slate-400">Nenhum canal conectado</p>
+                  )}
+                  {channels.map((ch) => (
+                    <button
+                      key={ch.id}
+                      onClick={() => switchChannel(ch.id)}
+                      className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
+                        conversation.channelInstanceId === ch.id
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-semibold'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${conversation.channelInstanceId === ch.id ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate">{ch.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{ch.identifier}</p>
+                      </div>
+                      {conversation.channelInstanceId === ch.id && <span className="text-emerald-600 text-[10px] font-bold">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {lead?.phone && (

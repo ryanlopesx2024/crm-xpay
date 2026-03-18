@@ -51,8 +51,10 @@ export async function createEvolutionInstance(
   if (webhookUrl) {
     body.webhook = {
       url: webhookUrl,
-      byEvents: true,
-      base64: true,
+      byEvents: false,       // todos os eventos no mesmo POST
+      webhookByEvents: false,
+      base64: false,
+      webhookBase64: false,
       events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
     };
   }
@@ -111,6 +113,11 @@ export async function deleteEvolutionInstance(instanceName: string, creds: Evolu
   } catch { /* ignore */ }
 }
 
+// Normaliza número: remove +, espaços, traços. Mantém somente dígitos.
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
 export async function sendEvolutionMessage(
   instanceName: string,
   to: string,
@@ -126,8 +133,19 @@ export async function sendEvolutionMessage(
     return;
   }
   const api = makeApi(effectiveCreds);
-  await api.post(`/message/sendText/${instanceName}`, {
-    number: to,
-    textMessage: { text },
-  });
+  const number = normalizePhone(to);
+
+  // Tenta v2 primeiro ({ text }), fallback para v1 ({ textMessage: { text } })
+  try {
+    await api.post(`/message/sendText/${instanceName}`, { number, text });
+    console.log(`[Evolution] sendText v2 OK → instance=${instanceName} to=${number}`);
+  } catch (errV2: any) {
+    const status = errV2?.response?.status;
+    console.warn(`[Evolution] sendText v2 falhou (${status}), tentando v1…`);
+    await api.post(`/message/sendText/${instanceName}`, {
+      number,
+      textMessage: { text },
+    });
+    console.log(`[Evolution] sendText v1 OK → instance=${instanceName} to=${number}`);
+  }
 }

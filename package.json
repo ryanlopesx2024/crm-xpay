@@ -2,7 +2,7 @@
   "name": "crm-xpay",
   "version": "1.0.0",
   "scripts": {
-    "build": "cd backend && npm install && npx prisma generate && npm run build",
+    "build": "cd backend && npm install && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npm run build",
     "start": "cd backend && npx prisma db push --accept-data-loss && node dist/index.js"
   }
 }

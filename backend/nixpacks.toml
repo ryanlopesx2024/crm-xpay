@@ -1,3 +1,6 @@
+[variables]
+DATABASE_URL = "postgresql://x:x@localhost/x"
+
 [phases.build]
 cmds = [
   "npm install",

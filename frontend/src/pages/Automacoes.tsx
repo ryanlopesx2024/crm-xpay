@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, ChevronDown, Power, GripVertical, Zap } from 'lucide-react';
+import { Plus, Search, ChevronDown, Power, GripVertical, Trash2, Zap, AlertTriangle } from 'lucide-react';
 import { useAutomation } from '../hooks/useAutomation';
 import { Automation } from '../types';
 import AutomationCanvas from '../components/automation/AutomationCanvas';
@@ -20,10 +20,10 @@ export default function Automacoes() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState<Automation | null>(null);
 
   useEffect(() => { fetchAutomations(); }, [fetchAutomations]);
 
-  // Group by suffix after last " - " (e.g. "Codigo Enviado - Erectron" → group "Erectron")
   const grouped = useMemo(() => {
     const filtered = automations.filter((a) =>
       a.name.toLowerCase().includes(search.toLowerCase())
@@ -52,16 +52,17 @@ export default function Automacoes() {
     setSelected(updated);
   };
 
-  const handleToggle = async () => {
-    if (!selected) return;
-    const updated = await toggleAutomation(selected.id);
-    setSelected(updated);
+  const handleToggle = async (automation: Automation, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const updated = await toggleAutomation(automation.id);
+    if (selected?.id === automation.id) setSelected(updated);
   };
 
-  const handleDelete = async () => {
-    if (!selected || !confirm('Deletar esta automação?')) return;
-    await deleteAutomation(selected.id);
-    setSelected(null);
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete) return;
+    await deleteAutomation(confirmDelete.id);
+    if (selected?.id === confirmDelete.id) setSelected(null);
+    setConfirmDelete(null);
   };
 
   const toggleGroup = (name: string) => {
@@ -77,25 +78,22 @@ export default function Automacoes() {
     <div className="flex h-full overflow-hidden">
       {/* ── Left sidebar ── */}
       <div className="w-56 flex-shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
-        {/* Title */}
         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
           <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Automações</h2>
         </div>
 
-        {/* Search */}
         <div className="px-3 pt-3 pb-2">
           <div className="relative">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder=""
+              placeholder="Buscar..."
               className="w-full pl-7 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 dark:text-slate-200"
             />
           </div>
         </div>
 
-        {/* Add button */}
         <div className="px-3 pb-3">
           <button
             onClick={() => setCreating(true)}
@@ -107,7 +105,6 @@ export default function Automacoes() {
           </button>
         </div>
 
-        {/* Grouped list */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="space-y-1 px-2 pt-1">
@@ -120,7 +117,6 @@ export default function Automacoes() {
           ) : (
             grouped.map(({ name: groupName, items }) => (
               <div key={groupName}>
-                {/* Group header */}
                 <button
                   onClick={() => toggleGroup(groupName)}
                   className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
@@ -132,22 +128,30 @@ export default function Automacoes() {
                   />
                 </button>
 
-                {/* Items */}
                 {!collapsedGroups.has(groupName) &&
                   items.map((a) => (
-                    <button
+                    <div
                       key={a.id}
                       onClick={() => setSelected(a)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors group ${
+                      className={`w-full flex items-center gap-1.5 px-3 py-2 text-left transition-colors group cursor-pointer ${
                         selected?.id === a.id
                           ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 border-l-2 border-transparent'
                       }`}
                     >
-                      <Power
-                        size={11}
-                        className={a.isActive ? 'text-brand-500 flex-shrink-0' : 'text-slate-300 dark:text-slate-600 flex-shrink-0'}
-                      />
+                      {/* Toggle power button */}
+                      <button
+                        onClick={(e) => handleToggle(a, e)}
+                        title={a.isActive ? 'Desativar' : 'Ativar'}
+                        className={`flex-shrink-0 p-0.5 rounded transition-colors ${
+                          a.isActive
+                            ? 'text-emerald-500 hover:text-emerald-600'
+                            : 'text-slate-300 dark:text-slate-600 hover:text-slate-400'
+                        }`}
+                      >
+                        <Power size={11} />
+                      </button>
+
                       <span
                         className={`flex-1 text-[11px] truncate leading-tight ${
                           selected?.id === a.id
@@ -157,11 +161,19 @@ export default function Automacoes() {
                       >
                         {a.name.replace(new RegExp(` - ${groupName}$`), '').trim() || a.name}
                       </span>
-                      <GripVertical
-                        size={11}
-                        className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 flex-shrink-0"
-                      />
-                    </button>
+
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
+                        <GripVertical size={10} className="text-slate-300 dark:text-slate-600" />
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(a); }}
+                          title="Deletar"
+                          className="p-0.5 rounded text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    </div>
                   ))}
               </div>
             ))
@@ -169,26 +181,22 @@ export default function Automacoes() {
         </div>
       </div>
 
-      {/* ── Main canvas area ── */}
+      {/* ── Main canvas ── */}
       <div className="flex-1 overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-900">
         {selected ? (
           <AutomationCanvas
-            automation={selected}
+            automation={automations.find(a => a.id === selected.id) || selected}
             onSave={handleSaveFlow}
-            onToggle={handleToggle}
-            onDelete={handleDelete}
+            onToggle={() => handleToggle(selected)}
+            onDelete={() => setConfirmDelete(selected)}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
               <Zap size={26} className="text-slate-300 dark:text-slate-600" />
             </div>
-            <p className="text-sm font-medium text-slate-400 dark:text-slate-500">
-              Selecione uma automação
-            </p>
-            <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">
-              ou crie uma nova na barra lateral
-            </p>
+            <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Selecione uma automação</p>
+            <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">ou crie uma nova na barra lateral</p>
           </div>
         )}
       </div>
@@ -196,10 +204,8 @@ export default function Automacoes() {
       {/* ── Create modal ── */}
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-96 animate-fade-in-up">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">
-              Nova automação
-            </h3>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-96">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Nova automação</h3>
             <input
               type="text"
               value={newName}
@@ -212,7 +218,7 @@ export default function Automacoes() {
             <div className="flex gap-2">
               <button
                 onClick={() => { setCreating(false); setNewName(''); }}
-                className="flex-1 py-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                className="flex-1 py-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
@@ -223,6 +229,40 @@ export default function Automacoes() {
                 className="flex-1 py-2 text-sm text-white rounded-xl disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed hover:opacity-90 transition-all"
               >
                 Criar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete confirm modal ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-96">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={18} className="text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Deletar automação</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-5">
+              Tem certeza que deseja deletar <strong>"{confirmDelete.name}"</strong>?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2 text-sm text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
+              >
+                Deletar
               </button>
             </div>
           </div>

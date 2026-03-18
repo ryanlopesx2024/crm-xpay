@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid,
   GitBranch,
@@ -41,6 +41,7 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { unreadCount } = useNotificationStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const { conversations } = useConversationStore();
 
   // Badge: conta conversas pendentes ou com mensagem não lida
@@ -160,7 +161,7 @@ export default function Sidebar() {
             </button>
             <div className="absolute left-full bottom-0 ml-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-1 hidden group-hover:block min-w-[120px] z-50">
               <button
-                onClick={logout}
+                onClick={() => { logout(); navigate('/login'); }}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg w-full text-left transition-colors"
               >
                 <LogOut size={14} />

@@ -3,9 +3,8 @@ services:
     name: crm-xpay-backend
     runtime: node
     plan: free
-    rootDir: backend
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npx prisma db push --accept-data-loss && node dist/index.js
+    buildCommand: cd backend && npm install && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npm run build
+    startCommand: cd backend && npx prisma db push --accept-data-loss && node dist/index.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

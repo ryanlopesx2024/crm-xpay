@@ -578,19 +578,11 @@ function ChannelCard({
   const [webhookMsg, setWebhookMsg] = useState('');
 
   const handleSetWebhook = async () => {
-    const url = prompt(
-      'URL pública do backend (ex: http://SEU-IP:3001 ou https://seu-dominio.com).\nDeixe vazio para usar localhost:3001:',
-      ''
-    );
-    if (url === null) return; // cancelou
     setWebhookLoading(true);
     setWebhookMsg('');
     try {
-      const webhookUrl = url.trim()
-        ? `${url.trim().replace(/\/$/, '')}/webhooks/evolution`
-        : undefined;
-      await api.post(`/api/channels/${channel.id}/set-webhook`, webhookUrl ? { webhookUrl } : {});
-      setWebhookMsg('✓ Webhook configurado!');
+      await api.post(`/api/channels/${channel.id}/set-webhook`, {});
+      setWebhookMsg('✓ Webhook registrado!');
     } catch (e: any) {
       setWebhookMsg('✗ ' + (e?.response?.data?.error || 'Erro'));
     } finally {

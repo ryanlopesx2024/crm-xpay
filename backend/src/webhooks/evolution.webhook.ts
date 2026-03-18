@@ -53,11 +53,16 @@ async function handleEvolutionEvent(body: any): Promise<void> {
           const backendUrl = process.env.BACKEND_URL || `http://${new URL(creds.url).hostname}:${process.env.PORT || '3001'}`;
           const webhookUrl = `${backendUrl}/webhooks/evolution`;
           const api = axios.create({ baseURL: creds.url.replace(/\/$/, ''), headers: { apikey: creds.key }, timeout: 8000 });
-          await api.post(`/webhook/set/${instanceName}`, {
+          const payload = {
             enabled: true, url: webhookUrl,
             webhookByEvents: false, webhookBase64: false,
             events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
-          });
+          };
+          try {
+            await api.post(`/webhook/set/${instanceName}`, { webhook: payload });
+          } catch {
+            await api.post(`/webhook/set/${instanceName}`, payload);
+          }
           console.log(`[Evolution webhook] auto re-registered webhook → ${webhookUrl}`);
         } catch (e: any) {
           console.warn('[Evolution webhook] auto re-register webhook falhou:', e?.message);

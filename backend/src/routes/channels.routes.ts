@@ -238,13 +238,20 @@ router.post('/:id/set-webhook', async (req: AuthRequest, res: Response): Promise
       timeout: 10000,
     });
 
-    await api.post(`/webhook/set/${channel.identifier}`, {
+    const webhookPayload = {
       enabled: true,
       url: webhookUrl,
       webhookByEvents: false,
       webhookBase64: false,
       events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
-    });
+    };
+
+    // Evolution v2 wraps payload in { webhook: ... }, v1 sends flat
+    try {
+      await api.post(`/webhook/set/${channel.identifier}`, { webhook: webhookPayload });
+    } catch {
+      await api.post(`/webhook/set/${channel.identifier}`, webhookPayload);
+    }
 
     res.json({ ok: true, webhookUrl });
   } catch (err: any) {

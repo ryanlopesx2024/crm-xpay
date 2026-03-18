@@ -1,20 +1,17 @@
 ## CRM XPAY — Render Blueprint
 ## Como usar:
-##   1. Suba o código no GitHub (repo privado ou público)
-##   2. render.com → New → Blueprint → aponte para o repo
-##   3. Render cria backend + frontend + banco automaticamente
-##   4. Após deploy, veja a URL do backend e atualize BACKEND_URL e VITE_API_URL
+##   1. render.com → New → Blueprint → aponte para o repo GitHub
+##   2. Render cria backend + frontend + banco automaticamente
 
 services:
 
-  # ── Backend (Node.js API) ────────────────────────────────────────────────────
+  # ── Backend (Docker) ──────────────────────────────────────────────────────────
   - type: web
     name: crm-xpay-backend
-    runtime: node
+    runtime: docker
     plan: free
     rootDir: backend
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npx prisma db push --accept-data-loss && node dist/index.js
+    dockerfilePath: Dockerfile
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -30,23 +27,20 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
-      # URL pública do backend (Render gera automaticamente como crm-xpay-backend.onrender.com)
       - key: BACKEND_URL
         value: https://crm-xpay-backend.onrender.com
       - key: FRONTEND_URL
         value: https://crm-xpay-frontend.onrender.com
       - key: WHATSAPP_WEBHOOK_VERIFY_TOKEN
         value: xpay-verify-token
-      # Preenchido pelo cliente após conectar a Evolution deles
       - key: EVOLUTION_API_URL
         value: ""
       - key: EVOLUTION_API_KEY
         value: ""
 
-  # ── Frontend (React SPA — Static Site) ──────────────────────────────────────
-  - type: web
+  # ── Frontend (Static Site) ────────────────────────────────────────────────────
+  - type: static
     name: crm-xpay-frontend
-    runtime: static
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build

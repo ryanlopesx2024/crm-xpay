@@ -86,6 +86,12 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Log ALL webhook requests (debug)
+app.use('/webhooks', (req, _res, next) => {
+  console.log(`[WEBHOOK-IN] ${req.method} ${req.path} from=${req.ip} body=${JSON.stringify(req.body).slice(0, 300)}`);
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/pipelines', pipelineRoutes);

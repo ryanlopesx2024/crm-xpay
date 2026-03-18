@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma, io } from '../index';
+import { triggerAutomation } from '../services/automation.service';
 
 const router = Router();
 
@@ -229,6 +230,9 @@ async function handleEvolutionEvent(body: any): Promise<void> {
     io.to(`conv_${conversation.id}`).emit('new_message', savedMessage);
 
     console.log(`[Evolution webhook] Msg salva: conv=${conversation.id} lead=${lead.name} tipo=${msgType}`);
+
+    // Fire MESSAGE_RECEIVED automation (non-blocking)
+    triggerAutomation(channel.companyId, 'MESSAGE_RECEIVED', lead.id, { content, msgType }).catch(() => {});
   }
 }
 

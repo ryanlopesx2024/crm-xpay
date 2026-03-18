@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma, io } from '../index';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { triggerAutomation } from '../services/automation.service';
 
 export const listDeals = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -210,6 +211,8 @@ export const wonDeal = async (req: AuthRequest, res: Response): Promise<void> =>
     });
     io.to(req.companyId!).emit('deal_updated', deal);
     res.json(deal);
+
+    triggerAutomation(req.companyId!, 'DEAL_WON', deal.leadId, { dealId: id }).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao marcar negocio como ganho' });
@@ -242,6 +245,8 @@ export const lostDeal = async (req: AuthRequest, res: Response): Promise<void> =
     });
     io.to(req.companyId!).emit('deal_updated', deal);
     res.json(deal);
+
+    triggerAutomation(req.companyId!, 'DEAL_LOST', deal.leadId, { dealId: id }).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao marcar negocio como perdido' });

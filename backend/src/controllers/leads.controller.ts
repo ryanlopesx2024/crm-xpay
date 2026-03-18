@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../index';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { triggerAutomation } from '../services/automation.service';
 
 function safeJsonParse(val: unknown): unknown {
   if (typeof val === 'string') {
@@ -152,6 +153,9 @@ export const createLead = async (req: AuthRequest, res: Response): Promise<void>
     });
 
     res.status(201).json(parseLead(lead as unknown as Record<string, unknown>));
+
+    // Fire LEAD_CREATED automation (non-blocking)
+    triggerAutomation(req.companyId!, 'LEAD_CREATED', lead.id).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao criar lead' });
@@ -204,6 +208,10 @@ export const addTag = async (req: AuthRequest, res: Response): Promise<void> => 
     });
 
     res.json({ message: 'Tag adicionada' });
+
+    // Fire TAG_ADDED automation (non-blocking)
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (lead) triggerAutomation(lead.companyId, 'TAG_ADDED', id, { tagId, tagName: tag?.name }).catch(() => {});
   } catch {
     res.status(500).json({ error: 'Erro ao adicionar tag' });
   }

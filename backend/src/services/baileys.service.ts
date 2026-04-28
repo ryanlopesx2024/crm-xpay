@@ -239,14 +239,21 @@ const silentLogger = {
 export async function connect(channelId: string): Promise<void> {
   closeInstance(channelId);
 
-  const { makeWASocket, DisconnectReason, Browsers } = await getBaileys();
+  const { makeWASocket, DisconnectReason, Browsers, fetchLatestBaileysVersion } = await getBaileys();
   const { state, saveCreds } = await useDatabaseAuthState(channelId);
+
+  // Always fetch the latest WA Web version — outdated versions get rejected by WhatsApp
+  const { version } = await fetchLatestBaileysVersion().catch(() => ({
+    version: [2, 3000, 1035194821] as [number, number, number],
+  }));
+  console.log(`[Baileys] channel ${channelId} connecting with WA version ${version.join('.')}`);
 
   const token = Symbol();
   const inst: BaileysInstance = { sock: null, qr: '', status: 'CONNECTING', reconnectToken: token };
   instances.set(channelId, inst);
 
   const sock = makeWASocket({
+    version,
     auth: state,
     browser: Browsers.ubuntu('Chrome'),
     printQRInTerminal: false,

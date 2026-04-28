@@ -1,12 +1,10 @@
 services:
-  # ── Backend (Node.js / Express + Prisma) ───────────────────────────────────
   - type: web
     name: crm-xpay-backend
     runtime: node
     plan: free
-    rootDir: backend
-    buildCommand: npm install && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npm run build
-    startCommand: npx prisma db push --accept-data-loss && node dist/index.js
+    buildCommand: "cd frontend && npm install && VITE_API_URL='' npm run build && cd ../backend && npm install && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npm run build"
+    startCommand: "cd backend && npx prisma db push --accept-data-loss && node dist/index.js"
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -20,25 +18,10 @@ services:
       - key: BACKEND_URL
         value: https://crm-xpay-9.onrender.com
       - key: FRONTEND_URL
-        value: https://crm-xpay-frontend.onrender.com
+        value: https://crm-xpay-9.onrender.com
       - key: WHATSAPP_WEBHOOK_VERIFY_TOKEN
         value: xpay-verify-token
       - key: EVOLUTION_API_URL
         value: ""
       - key: EVOLUTION_API_KEY
         value: ""
-
-  # ── Frontend (React / Vite — static site) ──────────────────────────────────
-  - type: static
-    name: crm-xpay-frontend
-    plan: free
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://crm-xpay-9.onrender.com

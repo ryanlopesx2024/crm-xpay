@@ -132,6 +132,18 @@ setupPresenceSocket(io);
 // Funnel timeout checker (every 60s)
 setInterval(() => { checkFunnelTimeouts().catch(() => {}); }, 60_000);
 
+// Serve frontend static files in production
+if (process.env.NODE_ENV === 'production') {
+  const frontendDist = path.join(process.cwd(), '..', 'frontend', 'dist');
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+    console.log(`Serving frontend from ${frontendDist}`);
+  }
+}
+
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
   console.log(`CRM xPay backend rodando na porta ${PORT}`);

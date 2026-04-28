@@ -10,8 +10,14 @@ interface BaileysInstance {
 
 const instances = new Map<string, BaileysInstance>();
 
+// Baileys is ESM-only. TypeScript with module:commonjs compiles `await import()`
+// to `require()`, which fails for ESM packages. Use Function() to emit a native
+// import() call that Node.js handles correctly at runtime.
+const dynamicImport = new Function('modulePath', 'return import(modulePath)') as
+  (m: string) => Promise<typeof import('@whiskeysockets/baileys')>;
+
 async function getBaileys() {
-  return await import('@whiskeysockets/baileys');
+  return dynamicImport('@whiskeysockets/baileys');
 }
 
 // ── DB-backed auth state ──────────────────────────────────────────────────────

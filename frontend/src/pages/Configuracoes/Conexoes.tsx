@@ -5,6 +5,7 @@ import {
   Instagram, Facebook, ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import api from '../../services/api';
+import { getSocket } from '../../services/socket';
 
 // ── types ─────────────────────────────────────────────────────────────────────
 interface ChannelConfig {
@@ -108,6 +109,7 @@ function QRModal({ channel, onClose, onConnected }: {
   const [status, setStatus] = useState('CONNECTING');
   const [error, setError] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchQR = async () => {
     try {
@@ -122,24 +124,46 @@ function QRModal({ channel, onClose, onConnected }: {
       setStatus(data.status);
       if (data.status === 'CONNECTED') {
         if (pollRef.current) clearInterval(pollRef.current);
+        if (qrRef.current) clearInterval(qrRef.current);
         onConnected();
       }
     } catch { /* ignore */ }
   };
 
   useEffect(() => {
-    // Trigger connect to get first QR
+    // Start connection
     api.post(`/api/channels/${channel.id}/connect`)
       .then(({ data }) => { if (data.qrcode) setQr(data.qrcode); })
       .catch(err => setError(err?.response?.data?.error || 'Erro ao conectar'));
 
-    // Poll status every 3s, refresh QR every 30s
+    // Poll status every 3s
     pollRef.current = setInterval(pollStatus, 3000);
-    const qrRefresh = setInterval(fetchQR, 30000);
+    // Poll QR every 3s (Baileys may take a moment to generate it)
+    qrRef.current = setInterval(fetchQR, 3000);
+
+    // Listen for real-time QR via Socket.IO (instant update)
+    const socket = getSocket();
+    const onQR = (data: { channelId: string; qr: string }) => {
+      if (data.channelId === channel.id) setQr(data.qr);
+    };
+    const onStatus = (data: { channelId: string; status: string }) => {
+      if (data.channelId === channel.id) {
+        setStatus(data.status);
+        if (data.status === 'CONNECTED') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (qrRef.current) clearInterval(qrRef.current);
+          onConnected();
+        }
+      }
+    };
+    socket.on('channel_qr', onQR);
+    socket.on('channel_status_updated', onStatus);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
-      clearInterval(qrRefresh);
+      if (qrRef.current) clearInterval(qrRef.current);
+      socket.off('channel_qr', onQR);
+      socket.off('channel_status_updated', onStatus);
     };
   }, []);
 

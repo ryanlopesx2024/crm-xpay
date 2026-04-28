@@ -132,18 +132,19 @@ setupPresenceSocket(io);
 // Funnel timeout checker (every 60s)
 setInterval(() => { checkFunnelTimeouts().catch(() => {}); }, 60_000);
 
-// Serve frontend static files in production
-// frontend is built into backend/public/ by the build command
+// Serve frontend static files (built into backend/public/ by build.sh)
 const frontendDist = path.join(__dirname, '..', 'public');
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-  console.log(`[static] Serving frontend from ${frontendDist}`);
-} else {
-  console.log(`[static] Frontend dist not found at ${frontendDist}`);
-}
+console.log(`[static] __dirname=${__dirname}`);
+console.log(`[static] frontendDist=${frontendDist} exists=${fs.existsSync(frontendDist)}`);
+app.use(express.static(frontendDist));
+app.get('*', (_req, res) => {
+  const index = path.join(frontendDist, 'index.html');
+  if (fs.existsSync(index)) {
+    res.sendFile(index);
+  } else {
+    res.status(503).send(`Frontend not built. Expected: ${index}`);
+  }
+});
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {

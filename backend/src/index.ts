@@ -133,15 +133,16 @@ setupPresenceSocket(io);
 setInterval(() => { checkFunnelTimeouts().catch(() => {}); }, 60_000);
 
 // Serve frontend static files in production
-if (process.env.NODE_ENV === 'production') {
-  const frontendDist = path.join(process.cwd(), '..', 'frontend', 'dist');
-  if (fs.existsSync(frontendDist)) {
-    app.use(express.static(frontendDist));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(frontendDist, 'index.html'));
-    });
-    console.log(`Serving frontend from ${frontendDist}`);
-  }
+// frontend is built into backend/public/ by the build command
+const frontendDist = path.join(__dirname, '..', 'public');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+  console.log(`[static] Serving frontend from ${frontendDist}`);
+} else {
+  console.log(`[static] Frontend dist not found at ${frontendDist}`);
 }
 
 const PORT = process.env.PORT || 3001;

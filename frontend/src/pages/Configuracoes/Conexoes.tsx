@@ -42,7 +42,7 @@ interface Channel {
 
 // ── connection type definitions ───────────────────────────────────────────────
 type ChannelPlatform = 'whatsapp' | 'instagram' | 'messenger';
-type WhatsappSubtype = 'WHATSAPP_CLOUD' | 'WHATSAPP_CLOUD_MANUAL' | 'WHATSAPP_ZAPI' | 'WHATSAPP_EVOLUTION';
+type WhatsappSubtype = 'WHATSAPP_CLOUD' | 'WHATSAPP_CLOUD_MANUAL' | 'WHATSAPP_ZAPI' | 'WHATSAPP_EVOLUTION' | 'WHATSAPP_BAILEYS';
 
 const PLATFORM_ICONS: Record<ChannelPlatform, { icon: React.ElementType; color: string; bg: string }> = {
   whatsapp:  { icon: MessageCircle, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
@@ -51,6 +51,7 @@ const PLATFORM_ICONS: Record<ChannelPlatform, { icon: React.ElementType; color: 
 };
 
 const WHATSAPP_SUBTYPES: { id: WhatsappSubtype; label: string; desc: string }[] = [
+  { id: 'WHATSAPP_BAILEYS',      label: 'Conexão Direta (QR)',   desc: 'Conecte seu WhatsApp escaneando um QR code. Sem servidor externo.' },
   { id: 'WHATSAPP_CLOUD',        label: 'Whatsapp Cloud',        desc: 'Crie uma nova conexão com a API do Whatsapp Cloud utilizando login com facebook.' },
   { id: 'WHATSAPP_CLOUD_MANUAL', label: 'Whatsapp Cloud (Manual)',desc: 'Crie uma nova conexão com a API do Whatsapp Cloud utilizando cadastro manual.' },
   { id: 'WHATSAPP_ZAPI',         label: 'Z-API',                 desc: 'Crie uma nova conexão com a API do Z-API' },
@@ -217,6 +218,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const updateCfg = (patch: Partial<ChannelConfig>) => setCfg(c => ({ ...c, ...patch }));
 
   const isCloud = subtype === 'WHATSAPP_CLOUD' || subtype === 'WHATSAPP_CLOUD_MANUAL';
+  const isBaileys = subtype === 'WHATSAPP_BAILEYS';
 
   const handleCreate = async () => {
     if (!name.trim()) { setErr('Nome da conexão é obrigatório'); return; }
@@ -233,13 +235,15 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     setSaving(true);
     setErr('');
     try {
-      const identifier = isCloud ? (cfg.phoneNumberId || name) : (cfg.instanceName || name);
+      const identifier = isBaileys
+        ? name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 30) || `baileys-${Date.now()}`
+        : isCloud ? (cfg.phoneNumberId || name) : (cfg.instanceName || name);
       const { data } = await api.post('/api/channels', {
         name,
         type: subtype,
         identifier,
         status: 'DISCONNECTED',
-        config: JSON.stringify(cfg),
+        config: isBaileys ? '{}' : JSON.stringify(cfg),
       });
       onCreated(data);
     } catch (e: any) {
@@ -326,7 +330,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           </div>
         )}
 
-        {/* Step: form (Evolution API) */}
+        {/* Step: form */}
         {step === 'form' && (
           <div>
             {/* Connection name */}
@@ -339,8 +343,23 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
               />
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200 dark:border-slate-700 px-5">
+            {/* Baileys: simplified – just show info, no tabs */}
+            {isBaileys && (
+              <div className="px-5 pb-5">
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 text-[11px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                  <p className="font-semibold mb-1.5 text-sm">Conexão Direta via QR Code</p>
+                  <ul className="space-y-1 list-disc list-inside">
+                    <li>Sem necessidade de servidor externo</li>
+                    <li>Após criar, um QR code será exibido</li>
+                    <li>Escaneie com o WhatsApp do celular</li>
+                    <li>A sessão é salva automaticamente</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Tabs (only for non-Baileys) */}
+            {!isBaileys && <div className="flex border-b border-slate-200 dark:border-slate-700 px-5">
               {([
                 { id: 'auth' as FormTab, label: 'Autenticação' },
                 { id: 'intervals' as FormTab, label: 'Intervalos' },
@@ -358,9 +377,9 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                   {t.label}
                 </button>
               ))}
-            </div>
+            </div>}
 
-            <div className="px-5 py-4 space-y-3 min-h-[200px]">
+            {!isBaileys && <div className="px-5 py-4 space-y-3 min-h-[200px]">
               {/* Autenticação — Cloud API */}
               {formTab === 'auth' && isCloud && (
                 <>
@@ -516,7 +535,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                   )}
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* Error */}
             {err && (
@@ -602,9 +621,10 @@ function ChannelCard({
           <div>
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{channel.name}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">
-              {channel.type === 'WHATSAPP_EVOLUTION' ? 'Evolution API' :
-               channel.type === 'WHATSAPP_CLOUD' ? 'WhatsApp Cloud' :
-               channel.type === 'WHATSAPP_ZAPI' ? 'Z-API' : channel.type}
+              {channel.type === 'WHATSAPP_EVOLUTION' ? 'Evolution API'   :
+               channel.type === 'WHATSAPP_CLOUD'     ? 'WhatsApp Cloud'  :
+               channel.type === 'WHATSAPP_ZAPI'      ? 'Z-API'           :
+               channel.type === 'WHATSAPP_BAILEYS'   ? 'Conexão Direta'  : channel.type}
             </p>
           </div>
         </div>
@@ -718,8 +738,9 @@ export default function Conexoes() {
   const handleCreated = (ch: Channel) => {
     setChannels(prev => [...prev, ch]);
     setShowCreate(false);
-    if (ch.type === 'WHATSAPP_EVOLUTION') setQrChannel(ch);
-    // Cloud: mostra instrução de webhook
+    if (ch.type === 'WHATSAPP_EVOLUTION' || ch.type === 'WHATSAPP_BAILEYS') {
+      setQrChannel(ch);
+    }
   };
 
   const handleConnect = async (ch: Channel) => {

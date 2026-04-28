@@ -6,6 +6,7 @@ import {
   parseChannelConfig, getCredsFromConfig,
 } from '../services/evolution.service';
 import { sendCloudTextMessage, getCloudCredsFromConfig } from '../services/whatsapp-cloud.service';
+import * as baileysManager from '../services/baileys.service';
 
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -88,6 +89,23 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
             sendCloudTextMessage(phone, content, creds)
               .catch((e) => console.error('[sendMessage] Cloud API error:', e.message));
           }
+        }
+      } else if (ch.type === 'WHATSAPP_BAILEYS') {
+        if ((type === 'TEXT' || !type) && content) {
+          baileysManager.sendText(ch.id, phone, content)
+            .catch(e => console.error('[sendMessage] Baileys text error:', e?.message));
+        } else if (type === 'AUDIO' && mediaUrl) {
+          baileysManager.sendAudio(ch.id, phone, mediaUrl)
+            .catch(e => console.error('[sendMessage] Baileys audio error:', e?.message));
+        } else if (type === 'IMAGE' && mediaUrl) {
+          baileysManager.sendMedia(ch.id, phone, mediaUrl, 'image', content || 'imagem', content || '')
+            .catch(e => console.error('[sendMessage] Baileys image error:', e?.message));
+        } else if (type === 'VIDEO' && mediaUrl) {
+          baileysManager.sendMedia(ch.id, phone, mediaUrl, 'video', content || 'video', content || '')
+            .catch(e => console.error('[sendMessage] Baileys video error:', e?.message));
+        } else if (type === 'DOCUMENT' && mediaUrl) {
+          baileysManager.sendMedia(ch.id, phone, mediaUrl, 'document', content || 'arquivo', content || '')
+            .catch(e => console.error('[sendMessage] Baileys document error:', e?.message));
         }
       } else {
         console.warn('[sendMessage] Canal desconhecido: %s', ch?.type);

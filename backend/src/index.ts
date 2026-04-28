@@ -35,6 +35,7 @@ import { setupChatSocket } from './socket/chat.socket';
 import { setupQueueSocket } from './socket/queue.socket';
 import { setupPresenceSocket } from './socket/presence.socket';
 import { checkFunnelTimeouts } from './services/funnel.service';
+import * as baileysManager from './services/baileys.service';
 
 dotenv.config();
 
@@ -149,4 +150,6 @@ app.get('*', (_req, res) => {
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
   console.log(`CRM xPay backend rodando na porta ${PORT}`);
+  // Auto-reconnect Baileys channels that had saved sessions
+  baileysManager.initAll().catch(e => console.error('[Baileys] initAll error:', e));
 });

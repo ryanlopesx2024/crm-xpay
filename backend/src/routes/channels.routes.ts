@@ -8,6 +8,19 @@ import {
   getEvolutionStatus, disconnectEvolutionInstance, deleteEvolutionInstance,
 } from '../services/evolution.service';
 import { verifyCloudCredentials, getCloudCredsFromConfig } from '../services/whatsapp-cloud.service';
+import * as baileysManager from '../services/baileys.service';
+
+function waitForQR(channelId: string, timeoutMs: number): Promise<string> {
+  return new Promise(resolve => {
+    const start = Date.now();
+    const check = () => {
+      const qr = baileysManager.getQR(channelId);
+      if (qr || Date.now() - start > timeoutMs) resolve(qr);
+      else setTimeout(check, 300);
+    };
+    check();
+  });
+}
 
 const router = Router();
 router.use(authMiddleware);
@@ -47,13 +60,14 @@ router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => 
     });
     if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
 
-    // If Evolution, delete instance on the API too
     if (channel.type === 'WHATSAPP_EVOLUTION') {
       const cfg = parseChannelConfig(channel.config);
       const creds = getCredsFromConfig(cfg);
       if (creds.url && creds.key) {
         await deleteEvolutionInstance(channel.identifier, creds);
       }
+    } else if (channel.type === 'WHATSAPP_BAILEYS') {
+      await baileysManager.logout(channel.id).catch(() => {});
     }
 
     await prisma.channelInstance.delete({ where: { id: channel.id } });
@@ -72,6 +86,15 @@ router.post('/:id/connect', async (req: AuthRequest, res: Response): Promise<voi
     });
     if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
 
+    // ── Baileys direct connection ──────────────────────────────────────────
+    if (channel.type === 'WHATSAPP_BAILEYS') {
+      await baileysManager.connect(channel.id);
+      const qr = await waitForQR(channel.id, 8000);
+      res.json({ qrcode: qr || undefined, status: 'CONNECTING' });
+      return;
+    }
+
+    // ── Evolution API ──────────────────────────────────────────────────────
     const cfg = parseChannelConfig(channel.config);
     const creds = getCredsFromConfig(cfg);
 
@@ -84,7 +107,6 @@ router.post('/:id/connect', async (req: AuthRequest, res: Response): Promise<voi
     console.log('[connect] Registrando webhook em:', webhookUrl);
     const result = await createEvolutionInstance(channel.identifier, creds, webhookUrl);
 
-    // Update status to CONNECTING
     await prisma.channelInstance.update({
       where: { id: channel.id },
       data: { status: 'CONNECTING' },
@@ -96,7 +118,6 @@ router.post('/:id/connect', async (req: AuthRequest, res: Response): Promise<voi
     const detail = err?.response?.data ? JSON.stringify(err.response.data) : err?.message;
     console.error('[channels/connect] status=%s detail=%s', status, detail);
 
-    // Instance already exists → just fetch the QR code
     if (status === 403 || err?.message?.includes('already')) {
       try {
         const channel = await prisma.channelInstance.findFirst({ where: { id: req.params.id } });
@@ -123,6 +144,12 @@ router.get('/:id/qrcode', async (req: AuthRequest, res: Response): Promise<void>
     });
     if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
 
+    if (channel.type === 'WHATSAPP_BAILEYS') {
+      const qr = baileysManager.getQR(channel.id);
+      res.json({ qrcode: qr || undefined });
+      return;
+    }
+
     const cfg = parseChannelConfig(channel.config);
     const creds = getCredsFromConfig(cfg);
     const qr = await getEvolutionQRCode(channel.identifier, creds);
@@ -133,7 +160,7 @@ router.get('/:id/qrcode', async (req: AuthRequest, res: Response): Promise<void>
   }
 });
 
-// ── GET /api/channels/:id/status  →  verifica status na Evolution ────────────
+// ── GET /api/channels/:id/status  →  verifica status ────────────────────────
 router.get('/:id/status', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const channel = await prisma.channelInstance.findFirst({
@@ -141,11 +168,19 @@ router.get('/:id/status', async (req: AuthRequest, res: Response): Promise<void>
     });
     if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
 
+    if (channel.type === 'WHATSAPP_BAILEYS') {
+      const status = baileysManager.getStatus(channel.id);
+      if (status !== channel.status) {
+        await prisma.channelInstance.update({ where: { id: channel.id }, data: { status } });
+      }
+      res.json({ status });
+      return;
+    }
+
     const cfg = parseChannelConfig(channel.config);
     const creds = getCredsFromConfig(cfg);
     const status = await getEvolutionStatus(channel.identifier, creds);
 
-    // Sync status to DB if changed
     if (status !== channel.status) {
       await prisma.channelInstance.update({ where: { id: channel.id }, data: { status } });
     }
@@ -164,6 +199,12 @@ router.post('/:id/disconnect', async (req: AuthRequest, res: Response): Promise<
       where: { id: req.params.id, companyId: req.companyId! },
     });
     if (!channel) { res.status(404).json({ error: 'Não encontrado' }); return; }
+
+    if (channel.type === 'WHATSAPP_BAILEYS') {
+      await baileysManager.disconnect(channel.id);
+      res.json({ status: 'DISCONNECTED' });
+      return;
+    }
 
     const cfg = parseChannelConfig(channel.config);
     const creds = getCredsFromConfig(cfg);

@@ -1,7 +1,10 @@
 import { Response } from 'express';
 import { prisma, io } from '../index';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { sendEvolutionMessage, parseChannelConfig, getCredsFromConfig } from '../services/evolution.service';
+import {
+  sendEvolutionMessage, sendEvolutionMedia, sendEvolutionAudio,
+  parseChannelConfig, getCredsFromConfig,
+} from '../services/evolution.service';
 import { sendCloudTextMessage, getCloudCredsFromConfig } from '../services/whatsapp-cloud.service';
 
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -50,32 +53,47 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
     const lead = conversation.lead;
     console.log('[sendMessage] ch.type=%s ch.identifier=%s lead.phone=%s type=%s', ch?.type, ch?.identifier, lead?.phone, type);
 
-    if (ch && lead?.phone && (type === 'TEXT' || !type) && content) {
+    if (ch && lead?.phone) {
       const phone = lead.phone;
       if (ch.type === 'WHATSAPP_EVOLUTION') {
         const cfg = parseChannelConfig(ch.config);
         const creds = getCredsFromConfig(cfg);
-        console.log('[sendMessage] Evolution creds url=%s key=%s', creds.url, creds.key ? '***' : 'EMPTY');
-        if (creds.url && creds.key) {
-          sendEvolutionMessage(ch.identifier, phone, content, creds).catch((err) =>
-            console.error('[sendMessage] Evolution error:', err?.response?.data || err.message)
-          );
-        } else {
+        console.log('[sendMessage] Evolution url=%s key=%s type=%s', creds.url, creds.key ? '***' : 'EMPTY', type);
+        if (!creds.url || !creds.key) {
           console.warn('[sendMessage] Evolution: URL ou KEY vazia, não enviando');
+        } else if ((type === 'TEXT' || !type) && content) {
+          sendEvolutionMessage(ch.identifier, phone, content, creds)
+            .catch((e) => console.error('[sendMessage] Evolution text error:', e?.response?.data || e.message));
+        } else if (type === 'AUDIO' && mediaUrl) {
+          sendEvolutionAudio(ch.identifier, phone, mediaUrl, creds)
+            .catch((e) => console.error('[sendMessage] Evolution audio error:', e?.message));
+        } else if (type === 'IMAGE' && mediaUrl) {
+          sendEvolutionMedia(ch.identifier, phone, mediaUrl, 'image', content || 'imagem', content || '', creds)
+            .catch((e) => console.error('[sendMessage] Evolution image error:', e?.message));
+        } else if (type === 'VIDEO' && mediaUrl) {
+          sendEvolutionMedia(ch.identifier, phone, mediaUrl, 'video', content || 'video', content || '', creds)
+            .catch((e) => console.error('[sendMessage] Evolution video error:', e?.message));
+        } else if (type === 'DOCUMENT' && mediaUrl) {
+          sendEvolutionMedia(ch.identifier, phone, mediaUrl, 'document', content || 'arquivo', content || '', creds)
+            .catch((e) => console.error('[sendMessage] Evolution document error:', e?.message));
+        } else if (type === 'STICKER' && mediaUrl) {
+          sendEvolutionMedia(ch.identifier, phone, mediaUrl, 'image', 'sticker', '', creds)
+            .catch((e) => console.error('[sendMessage] Evolution sticker error:', e?.message));
         }
       } else if (ch.type === 'WHATSAPP_CLOUD' || ch.type === 'WHATSAPP_CLOUD_MANUAL') {
-        const cfg = JSON.parse(ch.config || '{}');
-        const creds = getCloudCredsFromConfig(cfg);
-        if (creds.phoneNumberId && creds.accessToken) {
-          sendCloudTextMessage(phone, content, creds).catch((err) =>
-            console.error('[sendMessage] Cloud API error:', err.message)
-          );
+        if ((type === 'TEXT' || !type) && content) {
+          const cfg = JSON.parse(ch.config || '{}');
+          const creds = getCloudCredsFromConfig(cfg);
+          if (creds.phoneNumberId && creds.accessToken) {
+            sendCloudTextMessage(phone, content, creds)
+              .catch((e) => console.error('[sendMessage] Cloud API error:', e.message));
+          }
         }
       } else {
-        console.warn('[sendMessage] Tipo de canal desconhecido ou sem canal: %s', ch?.type);
+        console.warn('[sendMessage] Canal desconhecido: %s', ch?.type);
       }
     } else {
-      console.warn('[sendMessage] Não enviou via API: ch=%s phone=%s type=%s content=%s', !!ch, lead?.phone, type, !!content);
+      console.warn('[sendMessage] Sem canal ou telefone: ch=%s phone=%s', !!ch, lead?.phone);
     }
   } catch (err) {
     console.error(err);

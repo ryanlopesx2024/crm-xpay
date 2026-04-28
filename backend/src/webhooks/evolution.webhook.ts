@@ -117,27 +117,39 @@ async function handleEvolutionEvent(body: any): Promise<void> {
       msg.imageMessage?.caption ||
       msg.videoMessage?.caption ||
       msg.documentMessage?.title ||
+      msg.documentMessage?.fileName ||
       msg.buttonsResponseMessage?.selectedDisplayText ||
       msg.listResponseMessage?.title ||
-      data.body ||          // alguns eventos colocam direto em body
+      data.body ||
       data.text ||
       '';
 
-    console.log('[Evolution webhook] content extraído:', JSON.stringify(content));
-
-    const mediaUrl: string =
-      data.message?.imageMessage?.url ||
-      data.message?.videoMessage?.url ||
-      data.message?.audioMessage?.url ||
-      data.message?.documentMessage?.url ||
-      '';
-
-    const msgType: string = data.message?.audioMessage ? 'AUDIO'
-      : data.message?.imageMessage ? 'IMAGE'
-      : data.message?.videoMessage ? 'VIDEO'
-      : data.message?.documentMessage ? 'DOCUMENT'
-      : data.message?.stickerMessage ? 'STICKER'
+    // Detecta tipo antes de extrair URL
+    const msgType: string = msg.audioMessage || msg.pttMessage ? 'AUDIO'
+      : msg.imageMessage ? 'IMAGE'
+      : msg.videoMessage ? 'VIDEO'
+      : msg.documentMessage ? 'DOCUMENT'
+      : msg.stickerMessage ? 'STICKER'
       : 'TEXT';
+
+    // Extrai URL ou base64 da mídia (Evolution pode mandar base64 ou URL)
+    const rawMediaObj: any =
+      msg.audioMessage || msg.pttMessage ||
+      msg.imageMessage || msg.videoMessage ||
+      msg.documentMessage || msg.stickerMessage || null;
+
+    let mediaUrl: string = rawMediaObj?.url || rawMediaObj?.mediaUrl || '';
+    // Se vier base64 direto no webhook (webhookBase64: true)
+    const b64 = rawMediaObj?.base64 || data.base64 || '';
+    if (!mediaUrl && b64) {
+      const mime = rawMediaObj?.mimetype || (msgType === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
+      mediaUrl = `data:${mime};base64,${b64}`;
+    }
+
+    const mediaType: string = rawMediaObj?.mimetype || '';
+    const filename: string = msg.documentMessage?.fileName || msg.documentMessage?.title || '';
+
+    console.log('[Evolution webhook] type=%s content=%s mediaUrl=%s', msgType, JSON.stringify(content).slice(0,80), mediaUrl.slice(0,60));
 
     const pushName: string = data.pushName || phone;
 
@@ -189,8 +201,9 @@ async function handleEvolutionEvent(body: any): Promise<void> {
         leadId: lead.id,
         direction: 'IN',
         type: msgType as 'TEXT',
-        content: content || null,
+        content: (content || filename || null),
         mediaUrl: mediaUrl || null,
+        mediaType: mediaType || null,
       },
     });
 

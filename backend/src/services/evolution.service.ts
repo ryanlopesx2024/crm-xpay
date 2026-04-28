@@ -53,8 +53,8 @@ export async function createEvolutionInstance(
       url: webhookUrl,
       byEvents: false,       // todos os eventos no mesmo POST
       webhookByEvents: false,
-      base64: false,
-      webhookBase64: false,
+      base64: true,
+      webhookBase64: true,
       events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
     };
   }

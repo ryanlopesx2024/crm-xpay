@@ -180,7 +180,7 @@ export interface ChannelInstance {
 
 export type ConversationStatus = 'OPEN' | 'PENDING' | 'RESOLVED' | 'BOT';
 export type MessageDirection = 'IN' | 'OUT';
-export type MessageType = 'TEXT' | 'AUDIO' | 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'TEMPLATE' | 'SYSTEM';
+export type MessageType = 'TEXT' | 'AUDIO' | 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'STICKER' | 'TEMPLATE' | 'SYSTEM';
 
 export interface Message {
   id: string;

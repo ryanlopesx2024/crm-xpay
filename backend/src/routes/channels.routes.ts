@@ -242,7 +242,8 @@ router.post('/:id/set-webhook', async (req: AuthRequest, res: Response): Promise
       enabled: true,
       url: webhookUrl,
       webhookByEvents: false,
-      webhookBase64: false,
+      webhookBase64: true,
+      base64: true,
       events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE'],
     };
 

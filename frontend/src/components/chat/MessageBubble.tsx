@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, CheckCheck, FileText } from 'lucide-react';
+import { Check, CheckCheck, FileText, Play } from 'lucide-react';
 import { Message } from '../../types';
 import AudioPlayer from './AudioPlayer';
 import { format } from 'date-fns';
@@ -78,6 +78,29 @@ export default function MessageBubble({ message, showSender }: MessageBubbleProp
               <p className="text-sm mt-1">{message.content}</p>
             )}
           </div>
+        )}
+
+        {/* VIDEO */}
+        {message.type === 'VIDEO' && (
+          <div className="mb-1">
+            {message.mediaUrl ? (
+              <video
+                src={message.mediaUrl}
+                controls
+                className="rounded-xl max-w-full max-h-64 object-cover"
+              />
+            ) : (
+              <div className="w-48 h-32 bg-slate-200 dark:bg-slate-700 rounded-xl flex items-center justify-center">
+                <Play size={24} className="text-slate-400" />
+              </div>
+            )}
+            {message.content && <p className="text-sm mt-1">{message.content}</p>}
+          </div>
+        )}
+
+        {/* STICKER */}
+        {message.type === 'STICKER' && message.mediaUrl && (
+          <img src={message.mediaUrl} alt="sticker" className="w-24 h-24 object-contain" />
         )}
 
         {/* DOCUMENT */}

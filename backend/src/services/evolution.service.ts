@@ -135,7 +135,6 @@ export async function sendEvolutionMessage(
   const api = makeApi(effectiveCreds);
   const number = normalizePhone(to);
 
-  // Tenta v2 primeiro ({ text }), fallback para v1 ({ textMessage: { text } })
   try {
     await api.post(`/message/sendText/${instanceName}`, { number, text });
     console.log(`[Evolution] sendText v2 OK → instance=${instanceName} to=${number}`);
@@ -147,5 +146,50 @@ export async function sendEvolutionMessage(
       textMessage: { text },
     });
     console.log(`[Evolution] sendText v1 OK → instance=${instanceName} to=${number}`);
+  }
+}
+
+export async function sendEvolutionMedia(
+  instanceName: string,
+  to: string,
+  mediaUrl: string,
+  mediaType: 'image' | 'video' | 'document',
+  filename: string,
+  caption: string,
+  creds: EvolutionCreds,
+): Promise<void> {
+  const api = makeApi(creds);
+  const number = normalizePhone(to);
+  const body = { number, mediatype: mediaType, media: mediaUrl, fileName: filename, caption };
+  try {
+    await api.post(`/message/sendMedia/${instanceName}`, body);
+    console.log(`[Evolution] sendMedia OK → ${mediaType} to=${number}`);
+  } catch (err: any) {
+    console.warn(`[Evolution] sendMedia falhou: ${err?.message}`);
+    // fallback: tenta como documento
+    await api.post(`/message/sendMedia/${instanceName}`, { ...body, mediatype: 'document' });
+  }
+}
+
+export async function sendEvolutionAudio(
+  instanceName: string,
+  to: string,
+  audioUrl: string,
+  creds: EvolutionCreds,
+): Promise<void> {
+  const api = makeApi(creds);
+  const number = normalizePhone(to);
+  try {
+    await api.post(`/message/sendWhatsAppAudio/${instanceName}`, { number, audio: audioUrl, encoding: true });
+    console.log(`[Evolution] sendAudio OK → to=${number}`);
+  } catch {
+    // fallback: envia como documento de áudio
+    await api.post(`/message/sendMedia/${instanceName}`, {
+      number,
+      mediatype: 'audio',
+      media: audioUrl,
+      fileName: 'audio.ogg',
+      caption: '',
+    });
   }
 }

@@ -3,8 +3,84 @@ import {
   ChevronLeft, Save, Settings, GitBranch, Clock, Zap, Tag, User,
   ArrowRight, Globe, Filter, MessageSquare, AlignLeft, MessageCircle,
   Mic, Paperclip, Link2, Trash2, ChevronDown, ChevronUp, Plus,
+  UploadCloud, CheckCircle2, Loader2, X,
 } from 'lucide-react';
 import api from '../../services/api';
+
+// ── File uploader hook ────────────────────────────────────────────────────────
+function useFileUpload() {
+  const [uploading, setUploading] = useState(false);
+  const upload = async (file: File): Promise<{ url: string; filename: string; mimeType: string } | null> => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await api.post('/api/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      return { url: data.url, filename: file.name, mimeType: file.type || data.mimetype };
+    } catch {
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+  return { upload, uploading };
+}
+
+// ── FileUploadZone ────────────────────────────────────────────────────────────
+function FileUploadZone({ item, onChange, accept, label }: {
+  item: ContentItem;
+  onChange: (u: ContentItem) => void;
+  accept: string;
+  label: string;
+}) {
+  const { upload, uploading } = useFileUpload();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    const result = await upload(file);
+    if (result) onChange({ ...item, url: result.url, filename: result.filename, mimeType: result.mimeType });
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept={accept} className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+      {item.url && item.filename ? (
+        <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600">
+          <CheckCircle2 size={15} className="text-emerald-500 flex-shrink-0" />
+          <span className="text-xs text-slate-700 dark:text-slate-200 flex-1 truncate">{item.filename}</span>
+          <button onClick={() => onChange({ ...item, url: undefined, filename: undefined, mimeType: undefined })}
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg flex-shrink-0">
+            <X size={12} className="text-slate-400" />
+          </button>
+        </div>
+      ) : (
+        <div
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          onClick={() => inputRef.current?.click()}
+          className="flex flex-col items-center justify-center gap-2 p-5 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl cursor-pointer transition-colors"
+        >
+          {uploading ? (
+            <Loader2 size={20} className="text-blue-500 animate-spin" />
+          ) : (
+            <UploadCloud size={20} className="text-slate-400" />
+          )}
+          <p className="text-xs text-slate-500 text-center">
+            {uploading ? 'Enviando...' : <><span className="text-blue-500 font-medium">Clique ou arraste</span> o arquivo<br /><span className="text-[10px]">{label}</span></>}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type ContentType = 'text' | 'user_input' | 'delay' | 'audio' | 'attachment' | 'dynamic_url' | 'buttons';
@@ -18,6 +94,8 @@ interface ContentItem {
   delay?: number;
   unit?: string;
   url?: string;
+  filename?: string;
+  mimeType?: string;
   label?: string;
   buttons?: { label: string; value: string }[];
 }
@@ -78,7 +156,12 @@ function ContentItemCard({ item, onChange, onDelete }: {
 }) {
   const [expanded, setExpanded] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const cfg = CONTENT_TYPES.find((c) => c.type === item.type)!;
+  // Normaliza tipos vindos de importações externas (video/image → attachment)
+  const normalizedType = (['text','user_input','delay','audio','attachment','dynamic_url','buttons'] as string[]).includes(item.type)
+    ? item.type as ContentType
+    : (item.type as string) === 'video' || (item.type as string) === 'image' || (item.type as string) === 'document' ? 'attachment' : 'text';
+  const safeItem = normalizedType !== item.type ? { ...item, type: normalizedType } : item;
+  const cfg = CONTENT_TYPES.find((c) => c.type === normalizedType) ?? CONTENT_TYPES[0];
   const Icon = cfg.icon;
 
   const insertVar = (v: string) => {
@@ -106,17 +189,17 @@ function ContentItemCard({ item, onChange, onDelete }: {
       </div>
       {expanded && (
         <div className="px-3 py-3 space-y-2.5">
-          {item.type === 'text' && (
+          {safeItem.type === 'text' && (
             <>
-              {!!item.text && (
+              {!!safeItem.text && (
                 <div className="rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-3 py-2.5 mb-2">
-                  <MessagePreview text={item.text} />
+                  <MessagePreview text={safeItem.text} />
                 </div>
               )}
               <textarea
                 ref={textareaRef}
-                value={item.text || ''}
-                onChange={(e) => onChange({ ...item, text: e.target.value })}
+                value={safeItem.text || ''}
+                onChange={(e) => onChange({ ...safeItem, text: e.target.value })}
                 className={`${fieldClass} resize-none`}
                 rows={4}
                 placeholder="Digite a mensagem... Use {variável} para personalizar"
@@ -131,50 +214,57 @@ function ContentItemCard({ item, onChange, onDelete }: {
               </div>
             </>
           )}
-          {item.type === 'user_input' && (
+          {safeItem.type === 'user_input' && (
             <>
               <div>
                 <p className="text-[10px] font-semibold text-slate-500 mb-1">Pergunta / Instrução</p>
-                <input type="text" value={item.placeholder || ''} onChange={(e) => onChange({ ...item, placeholder: e.target.value })} className={fieldClass} placeholder="Ex: Qual é o seu nome?" />
+                <input type="text" value={safeItem.placeholder || ''} onChange={(e) => onChange({ ...safeItem, placeholder: e.target.value })} className={fieldClass} placeholder="Ex: Qual é o seu nome?" />
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-slate-500 mb-1">Salvar resposta em variável</p>
-                <input type="text" value={item.variable || ''} onChange={(e) => onChange({ ...item, variable: e.target.value })} className={fieldClass} placeholder="Ex: nome_resposta" />
+                <input type="text" value={safeItem.variable || ''} onChange={(e) => onChange({ ...safeItem, variable: e.target.value })} className={fieldClass} placeholder="Ex: nome_resposta" />
               </div>
             </>
           )}
-          {item.type === 'delay' && (
+          {safeItem.type === 'delay' && (
             <div className="flex gap-2">
-              <input type="number" min={1} value={item.delay || 1} onChange={(e) => onChange({ ...item, delay: parseInt(e.target.value) })} className={`${fieldClass} w-24`} />
-              <select value={item.unit || 'SECONDS'} onChange={(e) => onChange({ ...item, unit: e.target.value })} className={`${fieldClass} flex-1`}>
+              <input type="number" min={1} value={safeItem.delay || 1} onChange={(e) => onChange({ ...safeItem, delay: parseInt(e.target.value) })} className={`${fieldClass} w-24`} />
+              <select value={safeItem.unit || 'SECONDS'} onChange={(e) => onChange({ ...safeItem, unit: e.target.value })} className={`${fieldClass} flex-1`}>
                 <option value="SECONDS">Segundos</option>
                 <option value="MINUTES">Minutos</option>
                 <option value="HOURS">Horas</option>
               </select>
             </div>
           )}
-          {(item.type === 'audio' || item.type === 'attachment' || item.type === 'dynamic_url') && (
+          {safeItem.type === 'audio' && (
+            <FileUploadZone item={safeItem} onChange={onChange}
+              accept="audio/*,.ogg,.mp3,.opus,.m4a,.wav"
+              label="MP3, OGG, OPUS, M4A, WAV" />
+          )}
+          {safeItem.type === 'attachment' && (
+            <FileUploadZone item={safeItem} onChange={onChange}
+              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+              label="Imagem, vídeo, PDF ou documento" />
+          )}
+          {safeItem.type === 'dynamic_url' && (
             <>
-              <input type="text" value={item.url || ''} onChange={(e) => onChange({ ...item, url: e.target.value })} className={fieldClass}
-                placeholder={item.type === 'audio' ? 'URL do áudio (mp3, ogg...)' : item.type === 'attachment' ? 'URL do arquivo' : 'URL dinâmica'} />
-              {item.type === 'dynamic_url' && (
-                <input type="text" value={item.label || ''} onChange={(e) => onChange({ ...item, label: e.target.value })} className={fieldClass} placeholder="Texto do link (opcional)" />
-              )}
+              <input type="text" value={safeItem.url || ''} onChange={(e) => onChange({ ...safeItem, url: e.target.value })} className={fieldClass} placeholder="URL dinâmica" />
+              <input type="text" value={safeItem.label || ''} onChange={(e) => onChange({ ...safeItem, label: e.target.value })} className={fieldClass} placeholder="Texto do link (opcional)" />
             </>
           )}
-          {item.type === 'buttons' && (
+          {safeItem.type === 'buttons' && (
             <div className="space-y-2">
-              {(item.buttons || []).map((btn, bi) => (
+              {(safeItem.buttons || []).map((btn, bi) => (
                 <div key={bi} className="flex gap-2 items-center">
                   <input type="text" value={btn.label}
-                    onChange={(e) => { const btns = [...(item.buttons || [])]; btns[bi] = { ...btns[bi], label: e.target.value }; onChange({ ...item, buttons: btns }); }}
+                    onChange={(e) => { const btns = [...(safeItem.buttons || [])]; btns[bi] = { ...btns[bi], label: e.target.value }; onChange({ ...safeItem, buttons: btns }); }}
                     className={`${fieldClass} flex-1`} placeholder={`Botão ${bi + 1}`} />
-                  <button onClick={() => onChange({ ...item, buttons: (item.buttons || []).filter((_, idx) => idx !== bi) })} className="p-2 hover:bg-red-50 rounded-lg">
+                  <button onClick={() => onChange({ ...safeItem, buttons: (safeItem.buttons || []).filter((_, idx) => idx !== bi) })} className="p-2 hover:bg-red-50 rounded-lg">
                     <Trash2 size={13} className="text-red-400" />
                   </button>
                 </div>
               ))}
-              <button onClick={() => onChange({ ...item, buttons: [...(item.buttons || []), { label: '', value: String(Date.now()) }] })}
+              <button onClick={() => onChange({ ...safeItem, buttons: [...(safeItem.buttons || []), { label: '', value: String(Date.now()) }] })}
                 className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-slate-300 rounded-xl text-[11px] text-slate-500 hover:border-blue-400 hover:text-blue-500">
                 <Plus size={12} /> Adicionar botão
               </button>
@@ -241,6 +331,21 @@ export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: Con
     let finalData = { ...formData };
     if (isSendMessage) {
       finalData = { ...finalData, contents, items: contents };
+    }
+    const act = (finalData.actionType || finalData.action) as string;
+    if (act === 'ASSIGN_AGENT') {
+      const agent = users.find(u => u.id === (finalData.userId as string || finalData.agentId as string));
+      if (agent) finalData = { ...finalData, agentName: agent.name };
+    }
+    if (act === 'MOVE_PIPELINE' || node.type === 'trigger') {
+      const pipeline = pipelines.find(p => p.id === finalData.pipelineId);
+      const stage = pipeline?.stages.find(s => s.id === finalData.stageId);
+      if (pipeline) finalData = { ...finalData, pipelineName: pipeline.name };
+      if (stage) finalData = { ...finalData, stageName: stage.name };
+    }
+    if (node.type === 'trigger' && (finalData.type as string) === 'MESSAGE_RECEIVED') {
+      const ch = channels.find(c => c.id === (finalData.connectionId || finalData.connection));
+      if (ch) finalData = { ...finalData, connectionName: ch.name };
     }
     onSave(node.id, finalData);
     onClose();
@@ -346,19 +451,6 @@ export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: Con
         {/* ── Other ACTION types ────────────────────────────────────────── */}
         {node.type === 'action' && !isSendMessage && (
           <div className="px-4 py-4 space-y-4">
-            <div>
-              <p className={labelClass}>Tipo de ação</p>
-              <select value={String(action || '')} onChange={(e) => { update('actionType', e.target.value); update('action', e.target.value); }} className={fieldClass}>
-                <option value="SEND_MESSAGE">Enviar Mensagem</option>
-                <option value="ADD_TAG">Adicionar Tag</option>
-                <option value="REMOVE_TAG">Remover Tag</option>
-                <option value="ASSIGN_AGENT">Atribuir Atendente</option>
-                <option value="MOVE_PIPELINE">Mover Pipeline</option>
-                <option value="HTTP_REQUEST">Requisição HTTP</option>
-                <option value="FILTER_LEADS">Filtrar Leads</option>
-              </select>
-            </div>
-
             {(action === 'ADD_TAG' || action === 'REMOVE_TAG') && (
               <div>
                 <p className={labelClass}>Tag</p>
@@ -428,19 +520,6 @@ export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: Con
         {/* ── TRIGGER ──────────────────────────────────────────────────── */}
         {node.type === 'trigger' && (
           <div className="px-4 py-4 space-y-4">
-            <div>
-              <p className={labelClass}>Tipo de gatilho</p>
-              <select value={String(formData.type || '')} onChange={(e) => update('type', e.target.value)} className={fieldClass}>
-                <option value="LEAD_CREATED">Lead Criado</option>
-                <option value="TAG_ADDED">Tag Adicionada</option>
-                <option value="MESSAGE_RECEIVED">Mensagem Recebida</option>
-                <option value="DEAL_WON">Negócio Ganho</option>
-                <option value="DEAL_LOST">Negócio Perdido</option>
-                <option value="TIME_ELAPSED">Tempo Decorrido</option>
-                <option value="SCHEDULED">Agendado</option>
-              </select>
-            </div>
-
             {/* TAG_ADDED: filter by specific tag */}
             {formData.type === 'TAG_ADDED' && (
               <div>
@@ -451,6 +530,53 @@ export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: Con
                 </select>
                 <p className="text-[9px] text-slate-400 mt-1">Se vazio, dispara para qualquer tag adicionada.</p>
               </div>
+            )}
+
+            {/* MESSAGE_RECEIVED: instance + frequency */}
+            {formData.type === 'MESSAGE_RECEIVED' && (
+              <>
+                <div>
+                  <p className={labelClass}>Instância WhatsApp</p>
+                  <select
+                    value={String(formData.connectionId || formData.connection || '')}
+                    onChange={(e) => { update('connectionId', e.target.value); update('connection', e.target.value); }}
+                    className={fieldClass}
+                  >
+                    <option value="">— Qualquer instância conectada —</option>
+                    {connectedChannels.map(ch => (
+                      <option key={ch.id} value={ch.id}>{ch.name} ({ch.identifier})</option>
+                    ))}
+                    {channels.filter(c => c.status !== 'CONNECTED').map(ch => (
+                      <option key={ch.id} value={ch.id} disabled>⚠ {ch.name} (desconectado)</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <p className={labelClass}>Frequência de disparo</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'ONCE_PER_LEAD', label: 'Uma vez por lead', desc: 'Dispara apenas na 1ª mensagem' },
+                      { value: 'ALWAYS',        label: 'Sempre',           desc: 'Toda mensagem recebida' },
+                    ].map(opt => {
+                      const active = (formData.frequency || 'ONCE_PER_LEAD') === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => update('frequency', opt.value)}
+                          className={`text-left rounded-xl border-2 px-3 py-2.5 transition-all ${
+                            active
+                              ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                              : 'border-slate-200 dark:border-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          <p className={`text-xs font-semibold ${active ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{opt.label}</p>
+                          <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{opt.desc}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
 
             {/* DEAL_WON / DEAL_LOST: filter by pipeline */}

@@ -26,6 +26,7 @@ import trackingRoutes from './routes/tracking.routes';
 import scriptsRoutes from './routes/scripts.routes';
 import campaignsRoutes from './routes/campaigns.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import funnelsRoutes from './routes/funnels.routes';
 import whatsappWebhook from './webhooks/whatsapp.webhook';
 import evolutionWebhook from './webhooks/evolution.webhook';
 import trackingWebhook from './webhooks/tracking.webhook';
@@ -33,6 +34,7 @@ import trackingWebhook from './webhooks/tracking.webhook';
 import { setupChatSocket } from './socket/chat.socket';
 import { setupQueueSocket } from './socket/queue.socket';
 import { setupPresenceSocket } from './socket/presence.socket';
+import { checkFunnelTimeouts } from './services/funnel.service';
 
 dotenv.config();
 
@@ -111,6 +113,7 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/scripts', scriptsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/funnels', funnelsRoutes);
 app.use('/webhooks/whatsapp', whatsappWebhook);
 app.use('/webhooks/evolution', evolutionWebhook);
 app.use('/webhooks/tracking', trackingWebhook);
@@ -125,6 +128,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 setupChatSocket(io);
 setupQueueSocket(io);
 setupPresenceSocket(io);
+
+// Funnel timeout checker (every 60s)
+setInterval(() => { checkFunnelTimeouts().catch(() => {}); }, 60_000);
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {

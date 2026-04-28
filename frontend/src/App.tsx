@@ -16,6 +16,7 @@ import Scripts from './pages/Scripts';
 import Disparos from './pages/Disparos';
 import Analises from './pages/Analises';
 import Configuracoes from './pages/Configuracoes';
+import Funnels from './pages/Funnels';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="scripts" element={<Scripts />} />
           <Route path="disparos" element={<Disparos />} />
           <Route path="analises" element={<Analises />} />
+          <Route path="funnels" element={<Funnels />} />
           <Route path="configuracoes/*" element={<Configuracoes />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

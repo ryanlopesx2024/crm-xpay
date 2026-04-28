@@ -278,6 +278,10 @@ export async function triggerAutomation(
           if (trigger.pipelineId && metadata.pipelineId && trigger.pipelineId !== metadata.pipelineId) return false;
           if (trigger.stageId && metadata.stageId && trigger.stageId !== metadata.stageId) return false;
         }
+        // MESSAGE_RECEIVED: filter by instance
+        if (triggerType === 'MESSAGE_RECEIVED') {
+          if (trigger.connectionId && metadata.channelId && trigger.connectionId !== metadata.channelId) return false;
+        }
         return true;
       } catch { return false; }
     });
@@ -290,6 +294,20 @@ export async function triggerAutomation(
     const vars = buildVars(lead as any);
 
     for (const automation of matching) {
+      // MESSAGE_RECEIVED: respect frequency setting
+      if (triggerType === 'MESSAGE_RECEIVED') {
+        try {
+          const trigger = typeof automation.trigger === 'string' ? JSON.parse(automation.trigger) : automation.trigger;
+          const frequency = trigger?.frequency || 'ONCE_PER_LEAD';
+          if (frequency === 'ONCE_PER_LEAD') {
+            const already = await prisma.automationExecution.findFirst({
+              where: { automationId: automation.id, leadId },
+            });
+            if (already) continue;
+          }
+        } catch { /* continue */ }
+      }
+
       const execution = await prisma.automationExecution.create({
         data: { automationId: automation.id, leadId, status: 'RUNNING', log: '[]' },
       });

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma, io } from '../index';
 import { triggerAutomation } from '../services/automation.service';
+import { handleFunnelMessage } from '../services/funnel.service';
 
 const router = Router();
 
@@ -231,8 +232,13 @@ async function handleEvolutionEvent(body: any): Promise<void> {
 
     console.log(`[Evolution webhook] Msg salva: conv=${conversation.id} lead=${lead.name} tipo=${msgType}`);
 
-    // Fire MESSAGE_RECEIVED automation (non-blocking)
-    triggerAutomation(channel.companyId, 'MESSAGE_RECEIVED', lead.id, { content, msgType }).catch(() => {});
+    // Route to active funnel execution first
+    const handledByFunnel = await handleFunnelMessage(lead, channel, content).catch(() => false);
+
+    // Fire MESSAGE_RECEIVED automation only if not consumed by funnel
+    if (!handledByFunnel) {
+      triggerAutomation(channel.companyId, 'MESSAGE_RECEIVED', lead.id, { content, msgType, channelId: channel.id }).catch(() => {});
+    }
   }
 }
 

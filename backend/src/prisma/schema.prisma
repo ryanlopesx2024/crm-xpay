@@ -29,6 +29,7 @@ model Company {
   automations      Automation[]
   apiKeys          ApiKey[]
   shipments        Shipment[]
+  funnels          Funnel[]
 }
 
 model User {
@@ -394,4 +395,34 @@ model Shipment {
   updatedAt         DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id])
+}
+
+model Funnel {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  jsonData  String   @default("{}")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  company    Company          @relation(fields: [companyId], references: [id])
+  executions FunnelExecution[]
+}
+
+model FunnelExecution {
+  id             String    @id @default(uuid())
+  funnelId       String
+  leadId         String
+  channelId      String
+  currentBlockId String    @default("")
+  waitingInput   Boolean   @default(false)
+  timeoutAt      DateTime?
+  timeoutBlockId String?
+  collectedData  String    @default("{}")
+  attendantId    String?
+  status         String    @default("RUNNING")
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  funnel  Funnel          @relation(fields: [funnelId], references: [id])
 }

@@ -4,9 +4,27 @@ import { GitBranch } from 'lucide-react';
 import NodeActions from './NodeActions';
 import NodeAddBelow from './NodeAddBelow';
 
+const FIELD_LABELS: Record<string, string> = {
+  tag:             'Tag',
+  source:          'Origem',
+  deal_value:      'Valor negócio',
+  message_content: 'Mensagem',
+};
+
+const OP_LABELS: Record<string, string> = {
+  equals:       '=',
+  contains:     '⊃',
+  greater_than: '>',
+  less_than:    '<',
+  exists:       'existe',
+};
+
 export default function ConditionNode({ id, data, selected }: NodeProps) {
   const nodeData = data as Record<string, unknown>;
-  const label = (nodeData.label as string) || 'Condição';
+  const label    = (nodeData.label as string) || 'Condição';
+  const field    = nodeData.field as string | undefined;
+  const operator = (nodeData.operator as string) || 'equals';
+  const value    = nodeData.value as string | undefined;
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -23,7 +41,6 @@ export default function ConditionNode({ id, data, selected }: NodeProps) {
             : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:shadow-md'
         }`}
       >
-        {/* Input handle — top */}
         <Handle
           type="target"
           position={Position.Top}
@@ -35,15 +52,30 @@ export default function ConditionNode({ id, data, selected }: NodeProps) {
           <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
             <GitBranch size={14} className="text-amber-600" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{label}</p>
-            <p className="text-[9px] text-slate-400 dark:text-slate-500">Condição Se/Então</p>
-          </div>
+          <p className="flex-1 min-w-0 text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{label}</p>
         </div>
 
-        {/* Output rows — right-side handles */}
+        {/* Condition preview */}
+        <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-700">
+          {field ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="bg-amber-50 text-amber-700 text-[9px] font-semibold px-1.5 py-0.5 rounded">
+                {FIELD_LABELS[field] || field}
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">{OP_LABELS[operator] || operator}</span>
+              {value && operator !== 'exists' && (
+                <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[9px] font-medium px-1.5 py-0.5 rounded truncate max-w-[90px]">
+                  {value}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-[10px] text-slate-400 italic">Clique para configurar</p>
+          )}
+        </div>
+
+        {/* Output branches */}
         <div className="border-t border-slate-100 dark:border-slate-700">
-          {/* TRUE / YES row */}
           <div className="relative flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
             <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium flex-1 pr-4 leading-tight">
@@ -58,7 +90,6 @@ export default function ConditionNode({ id, data, selected }: NodeProps) {
             <NodeAddBelow nodeId={id} sourceHandle="yes" side="right" show={hovered} />
           </div>
 
-          {/* FALSE / NO row */}
           <div className="relative flex items-center gap-2 px-3 py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
             <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium flex-1 pr-4 leading-tight">

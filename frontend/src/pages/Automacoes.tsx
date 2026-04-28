@@ -1,8 +1,142 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Plus, Search, ChevronDown, Power, GripVertical, Trash2, Zap,
   AlertTriangle, History, CheckCircle2, XCircle, Loader2, ChevronRight, RefreshCw,
+  Upload, X,
 } from 'lucide-react';
+
+// ── Funnel JSON → CRM flow converter ─────────────────────────────────────────
+
+// Maps funnel step to ContentItem format expected by ConfigPanel
+function stepToContentItem(m: any, idx: number): Record<string, any> {
+  const id = m.stepId || String(idx);
+  if (m.name === 'delay-message') {
+    return { id, type: 'delay', delay: m.options?.seconds || 1, unit: 'SECONDS' };
+  }
+  if (m.name === 'send-text-message') {
+    return { id, type: 'text', text: m.options?.text || '' };
+  }
+  if (m.name === 'text-input-message') {
+    return { id, type: 'user_input', text: m.options?.text || '', placeholder: m.options?.text || '', variable: m.options?.parameter || '' };
+  }
+  if (m.name === 'send-file-message') {
+    const mime: string = m.options?.mimeType || '';
+    if (mime.startsWith('audio/')) return { id, type: 'audio', url: m.options?.url || '', text: m.options?.filename || '' };
+    // image, video, document all → attachment
+    return { id, type: 'attachment', url: m.options?.url || '', text: m.options?.filename || '' };
+  }
+  return { id, type: 'text', text: '' };
+}
+
+function funnelJsonToFlow(funnelJson: any): { nodes: any[]; edges: any[] } {
+  const blocks: any[] = funnelJson.blocks || [];
+  const nodes: any[] = [];
+  const edges: any[] = [];
+
+  for (const block of blocks) {
+    const x = block.presentation?.x ?? 0;
+    const y = block.presentation?.y ?? 0;
+
+    let nodeType = 'action';
+    let data: Record<string, any> = {};
+
+    switch (block.type) {
+      case 'trigger':
+        nodeType = 'trigger';
+        data = { type: 'MESSAGE_RECEIVED', label: 'Gatilho - Funil' };
+        break;
+
+      case 'chat': {
+        const msgs: any[] = block.options?.messages || [];
+        const firstText = msgs.find((m: any) => m.name === 'send-text-message');
+        const label = firstText?.options?.text
+          ? firstText.options.text.slice(0, 40) + (firstText.options.text.length > 40 ? '…' : '')
+          : 'Enviar Mensagem';
+        const contents = msgs.map((m: any, i: number) => stepToContentItem(m, i));
+        data = { action: 'SEND_MESSAGE', label, contents, items: contents };
+        break;
+      }
+
+      case 'action': {
+        const actions: any[] = block.options?.actions || [];
+        const tagAct = actions.find((a: any) => a.name === 'add-tag-action');
+        const moveAct = actions.find((a: any) => a.name === 'move-business-action');
+        const agentAct = actions.find((a: any) => a.name === 'add-attendant-on-business-action');
+        if (tagAct) {
+          data = { action: 'ADD_TAG', label: 'Adicionar Tag' };
+        } else if (moveAct) {
+          data = { action: 'MOVE_PIPELINE', label: 'Mover Etapa' };
+        } else if (agentAct) {
+          data = { action: 'ASSIGN_AGENT', label: 'Atribuir Atendente' };
+        } else {
+          data = { action: 'SEND_MESSAGE', label: 'Ação CRM', contents: [], items: [] };
+        }
+        break;
+      }
+
+      case 'delay': {
+        const hours = block.options?.delay?.options?.hours || 0;
+        const minutes = block.options?.delay?.options?.minutes || 0;
+        nodeType = 'delay';
+        data = {
+          delay: hours || minutes || 1,
+          unit: hours ? 'HOURS' : 'MINUTES',
+          label: `Aguardar ${hours ? `${hours}h` : `${minutes}min`}`,
+        };
+        break;
+      }
+
+      case 'api': {
+        const apiDef = block.options?.apis?.[0];
+        data = {
+          action: 'HTTP_REQUEST',
+          label: 'Webhook HTTP',
+          url: apiDef?.options?.url || '',
+          method: apiDef?.options?.method || 'POST',
+        };
+        break;
+      }
+
+      case 'randomizer':
+      case 'condition':
+        nodeType = 'condition';
+        data = { condition: 'IF_THEN', label: block.type === 'randomizer' ? 'Randomizador' : 'Condição' };
+        break;
+
+      default:
+        continue;
+    }
+
+    nodes.push({ id: block.id, type: nodeType, position: { x, y }, data });
+
+    // edges from nextBlockId
+    const nextId: string = block.options?.nextBlockId;
+    if (nextId) {
+      edges.push({ id: `e-${block.id}-${nextId}`, source: block.id, target: nextId, type: 'smoothstep' });
+    }
+
+    // randomizer edges
+    if (block.type === 'randomizer') {
+      for (const r of (block.options?.randomizers || [])) {
+        if (r.nextBlockId) {
+          edges.push({ id: `e-${block.id}-${r.id}`, source: block.id, target: r.nextBlockId, label: `${r.name} ${r.perc}%`, type: 'smoothstep' });
+        }
+      }
+    }
+
+    // condition edges
+    if (block.type === 'condition') {
+      if (block.options?.trueNextBlockId) {
+        edges.push({ id: `e-${block.id}-true`, source: block.id, target: block.options.trueNextBlockId, sourceHandle: 'yes', label: 'Sim', type: 'smoothstep' });
+      }
+      if (block.options?.falseNextBlockId) {
+        edges.push({ id: `e-${block.id}-false`, source: block.id, target: block.options.falseNextBlockId, sourceHandle: 'no', label: 'Não', type: 'smoothstep' });
+      }
+    }
+  }
+
+  return { nodes, edges };
+}
 import { useAutomation } from '../hooks/useAutomation';
 import { Automation } from '../types';
 import AutomationCanvas from '../components/automation/AutomationCanvas';
@@ -167,6 +301,10 @@ export default function Automacoes() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState<Automation | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchAutomations();
@@ -215,6 +353,27 @@ export default function Automacoes() {
     setConfirmDelete(null);
   };
 
+  const handleImportJson = async () => {
+    if (!importJson.trim()) return;
+    setImportLoading(true);
+    try {
+      const parsed = JSON.parse(importJson);
+      const flow = funnelJsonToFlow(parsed);
+      const created = await createAutomation(parsed.name || 'Funil importado');
+      const updated = await updateAutomation(created.id, {
+        flow: flow as Automation['flow'],
+        trigger: { type: 'MESSAGE_RECEIVED' } as any,
+      } as any);
+      setImportJson('');
+      setShowImport(false);
+      setSelected(updated);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'JSON inválido');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   const toggleGroup = (name: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
@@ -246,10 +405,14 @@ export default function Automacoes() {
           </div>
         </div>
 
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 flex flex-col gap-1.5">
           <button onClick={() => setCreating(true)} style={{ backgroundColor: '#00A34D' }}
             className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-white rounded-lg font-medium hover:opacity-90 transition-all">
             <Plus size={12} /> Adicionar automação
+          </button>
+          <button onClick={() => setShowImport(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg font-medium transition-all border border-blue-200 dark:border-blue-800">
+            <Upload size={12} /> Importar JSON
           </button>
         </div>
 
@@ -329,6 +492,69 @@ export default function Automacoes() {
           </div>
         )}
       </div>
+
+      {/* ── Import JSON modal ── */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <Upload size={16} className="text-blue-500" />
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Importar Funil JSON</h3>
+              </div>
+              <button onClick={() => { setShowImport(false); setImportJson(''); }}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setImportJson(ev.target?.result as string);
+                  reader.readAsText(file);
+                }}
+              />
+              <button
+                onClick={() => importFileRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl py-4 text-sm text-slate-400 hover:text-blue-500 transition-colors"
+              >
+                <Upload size={16} />
+                {importJson ? '✓ Arquivo carregado — ou cole abaixo' : 'Clique para selecionar arquivo .json'}
+              </button>
+              <textarea
+                value={importJson}
+                onChange={(e) => setImportJson(e.target.value)}
+                placeholder='Cole o JSON do funil aqui...'
+                rows={10}
+                className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-xs font-mono dark:bg-slate-900 dark:text-slate-200 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowImport(false); setImportJson(''); }}
+                  className="flex-1 py-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleImportJson}
+                  disabled={!importJson.trim() || importLoading}
+                  className="flex-1 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {importLoading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  {importLoading ? 'Importando...' : 'Importar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Create modal ── */}
       {creating && (

@@ -1,16 +1,16 @@
 services:
+  # ── Backend (Node.js / Express + Prisma) ───────────────────────────────────
   - type: web
     name: crm-xpay-backend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm install && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npm run build
-    startCommand: cd backend && npx prisma db push --accept-data-loss && node dist/index.js
+    rootDir: backend
+    buildCommand: npm install && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npm run build
+    startCommand: npx prisma db push --accept-data-loss && node dist/index.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3001
       - key: DATABASE_URL
         value: postgresql://crm_xpay_db_user:xaAf6HXpJdFZ33AagiDqQrW8zF78MtC5@dpg-d6t2n0aa214c73canmf0-a/crm_xpay_db
       - key: JWT_SECRET
@@ -28,6 +28,7 @@ services:
       - key: EVOLUTION_API_KEY
         value: ""
 
+  # ── Frontend (React / Vite — static site) ──────────────────────────────────
   - type: static
     name: crm-xpay-frontend
     plan: free

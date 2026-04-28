@@ -43,7 +43,6 @@ export default function DelayNode({ id, data, selected }: NodeProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Aguardar</p>
-            <p className="text-[9px] text-slate-400 dark:text-slate-500">Atraso de tempo</p>
           </div>
         </div>
 

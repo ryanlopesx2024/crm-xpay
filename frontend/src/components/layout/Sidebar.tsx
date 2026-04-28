@@ -14,6 +14,7 @@ import {
   FileText,
   Megaphone,
   BarChart2,
+  GitMerge,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -31,6 +32,7 @@ const navItems = [
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/disparos', icon: Megaphone, label: 'Disparos' },
   { to: '/analises', icon: BarChart2, label: 'Analises' },
+  { to: '/funnels', icon: GitMerge, label: 'Funis' },
 ];
 
 const bottomItems = [

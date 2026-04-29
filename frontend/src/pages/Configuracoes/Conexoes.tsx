@@ -52,11 +52,10 @@ const PLATFORM_ICONS: Record<ChannelPlatform, { icon: React.ElementType; color: 
 };
 
 const WHATSAPP_SUBTYPES: { id: WhatsappSubtype; label: string; desc: string }[] = [
-  { id: 'WHATSAPP_BAILEYS',      label: 'Conexão Direta (QR)',   desc: 'Conecte seu WhatsApp escaneando um QR code. Sem servidor externo.' },
+  { id: 'WHATSAPP_EVOLUTION',    label: 'Uazap',                 desc: 'Conecte via Uazap — informe a URL da instância, nome e chave de API.' },
   { id: 'WHATSAPP_CLOUD',        label: 'Whatsapp Cloud',        desc: 'Crie uma nova conexão com a API do Whatsapp Cloud utilizando login com facebook.' },
   { id: 'WHATSAPP_CLOUD_MANUAL', label: 'Whatsapp Cloud (Manual)',desc: 'Crie uma nova conexão com a API do Whatsapp Cloud utilizando cadastro manual.' },
   { id: 'WHATSAPP_ZAPI',         label: 'Z-API',                 desc: 'Crie uma nova conexão com a API do Z-API' },
-  { id: 'WHATSAPP_EVOLUTION',    label: 'Evolution API',         desc: 'Crie uma nova conexão com a API do Evolution.' },
 ];
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string; icon: React.ElementType }> = {
@@ -469,11 +468,11 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 </>
               )}
 
-              {/* Autenticação — Evolution API */}
+              {/* Autenticação — Uazap / Evolution API */}
               {formTab === 'auth' && !isCloud && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">URL da instância</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">URL da instância Uazap</label>
                     <input
                       value={cfg.evolutionUrl || ''}
                       onChange={e => updateCfg({ evolutionUrl: e.target.value })}
@@ -494,7 +493,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
                       Chave de API
-                      <span className="ml-1.5 text-[9px] text-slate-400 font-normal">Acesse o Evolution Manager para obter a Chave de API</span>
+                      <span className="ml-1.5 text-[9px] text-slate-400 font-normal">Acesse o painel do Uazap para obter a Chave de API</span>
                     </label>
                     <input
                       type="password"
@@ -653,7 +652,7 @@ function ChannelCard({
           <div>
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{channel.name}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">
-              {channel.type === 'WHATSAPP_EVOLUTION' ? 'Evolution API'   :
+              {channel.type === 'WHATSAPP_EVOLUTION' ? 'Uazap'            :
                channel.type === 'WHATSAPP_CLOUD'     ? 'WhatsApp Cloud'  :
                channel.type === 'WHATSAPP_ZAPI'      ? 'Z-API'           :
                channel.type === 'WHATSAPP_BAILEYS'   ? 'Conexão Direta'  : channel.type}
@@ -724,7 +723,7 @@ function ChannelCard({
           <button
             onClick={handleSetWebhook}
             disabled={webhookLoading}
-            title="Configurar URL do webhook na Evolution"
+            title="Configurar URL do webhook no Uazap"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
           >
             {webhookLoading ? <Loader2 size={11} className="animate-spin" /> : <Settings size={11} />}

@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Zap, GitBranch, Clock, MessageSquare, Tag, User, DollarSign, Globe,
-  Layers, ArrowRight, Filter, MessageCircle, Briefcase, TrendingUp,
+  Layers, ArrowRight, Filter, Briefcase, TrendingUp,
   TrendingDown, Package, UserCheck, List, ListX, ShoppingCart, Trophy,
 } from 'lucide-react';
 
@@ -33,14 +33,6 @@ const blockCategories: Category[] = [
       { type: 'trigger', nodeType: 'trigger', label: 'Tag Adicionada',    description: 'Quando uma tag é aplicada',   icon: Tag,           iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100', data: { type: 'TAG_ADDED',        label: 'Tag Adicionada'      } },
       { type: 'trigger', nodeType: 'trigger', label: 'Mensagem Recebida', description: 'Ao receber uma mensagem',     icon: MessageSquare, iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100', data: { type: 'MESSAGE_RECEIVED', label: 'Mensagem Recebida'   } },
       { type: 'trigger', nodeType: 'trigger', label: 'Negócio Ganho',     description: 'Quando um deal é fechado',   icon: DollarSign,    iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100', data: { type: 'DEAL_WON',         label: 'Negócio Ganho'       } },
-    ],
-  },
-  {
-    name: 'Interação',
-    headerColor: 'bg-violet-500',
-    headerText: 'text-white',
-    blocks: [
-      { type: 'userinput', nodeType: 'userinput', label: 'Entrada do Usuário', description: 'Aguarda resposta do contato', icon: MessageCircle, iconColor: 'text-violet-600', iconBg: 'bg-violet-100', data: { label: 'Entrada do Usuário', timeout: 5, timeoutUnit: 'MINUTES' } },
     ],
   },
   {

@@ -238,6 +238,11 @@ export default function ActionNode({ id, data, selected }: NodeProps) {
   const cfg = ACTION_CONFIG[action] || { icon: Play, label: (nodeData.label as string) || 'Ação', iconColor: 'text-slate-600', iconBg: 'bg-slate-100' };
   const Icon = cfg.icon;
 
+  const contents = Array.isArray(nodeData.contents)
+    ? (nodeData.contents as ContentItem[])
+    : Array.isArray(nodeData.items) ? (nodeData.items as ContentItem[]) : [];
+  const hasUserInput = action === 'SEND_MESSAGE' && contents.some(c => c.type === 'user_input');
+
   return (
     <div
       className="group relative"
@@ -268,11 +273,38 @@ export default function ActionNode({ id, data, selected }: NodeProps) {
 
         <PreviewArea action={action} nodeData={nodeData} />
 
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="!w-3 !h-3 !bg-slate-300 !border-2 !border-white"
-        />
+        {hasUserInput ? (
+          <div className="px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-end relative">
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="text-[9px] text-blue-600 font-semibold">Respondeu</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-red-500 font-semibold">Sem resposta</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            </div>
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id="responded"
+              style={{ left: '28%', bottom: -6 }}
+              className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
+            />
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id="timeout"
+              style={{ left: '72%', bottom: -6 }}
+              className="!w-3 !h-3 !bg-red-500 !border-2 !border-white"
+            />
+          </div>
+        ) : (
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-white"
+          />
+        )}
       </div>
       <NodeAddBelow nodeId={id} show={hovered} />
     </div>

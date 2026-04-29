@@ -235,10 +235,41 @@ function ContentItemCard({ item, onChange, onDelete }: {
               <div>
                 <p className="text-[10px] font-semibold text-slate-500 mb-1">Pergunta / Instrução</p>
                 <input type="text" value={safeItem.placeholder || ''} onChange={(e) => onChange({ ...safeItem, placeholder: e.target.value })} className={fieldClass} placeholder="Ex: Qual é o seu nome?" />
+                <p className="text-[9px] text-slate-400 mt-1">Texto enviado antes de aguardar resposta.</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-slate-500 mb-1">Salvar resposta em variável</p>
                 <input type="text" value={safeItem.variable || ''} onChange={(e) => onChange({ ...safeItem, variable: e.target.value })} className={fieldClass} placeholder="Ex: nome_resposta" />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 mb-1">Timeout (sem resposta → caminho vermelho)</p>
+                <div className="flex gap-2">
+                  <input
+                    type="number" min={1}
+                    value={(safeItem as any).timeout || 5}
+                    onChange={(e) => onChange({ ...safeItem, timeout: parseInt(e.target.value) } as any)}
+                    className={`${fieldClass} w-24`}
+                  />
+                  <select
+                    value={(safeItem as any).timeoutUnit || 'MINUTES'}
+                    onChange={(e) => onChange({ ...safeItem, timeoutUnit: e.target.value } as any)}
+                    className={`${fieldClass} flex-1`}
+                  >
+                    <option value="SECONDS">Segundos</option>
+                    <option value="MINUTES">Minutos</option>
+                    <option value="HOURS">Horas</option>
+                  </select>
+                </div>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                  <span className="text-[9px] font-semibold text-blue-600">Respondeu → saída azul</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20">
+                  <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                  <span className="text-[9px] font-semibold text-red-600">Sem resposta → saída vermelha</span>
+                </div>
               </div>
             </>
           )}

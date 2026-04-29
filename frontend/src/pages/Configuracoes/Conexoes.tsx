@@ -126,6 +126,10 @@ function QRModal({ channel, onClose, onConnected }: {
         if (pollRef.current) clearInterval(pollRef.current);
         if (qrRef.current) clearInterval(qrRef.current);
         onConnected();
+      } else if (data.status === 'DISCONNECTED') {
+        if (pollRef.current) clearInterval(pollRef.current);
+        if (qrRef.current) clearInterval(qrRef.current);
+        setError('Não foi possível conectar ao WhatsApp. Clique em fechar e tente novamente.');
       }
     } catch { /* ignore */ }
   };
@@ -153,6 +157,10 @@ function QRModal({ channel, onClose, onConnected }: {
           if (pollRef.current) clearInterval(pollRef.current);
           if (qrRef.current) clearInterval(qrRef.current);
           onConnected();
+        } else if (data.status === 'DISCONNECTED') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (qrRef.current) clearInterval(qrRef.current);
+          setError('Não foi possível conectar ao WhatsApp. Feche e tente novamente.');
         }
       }
     };

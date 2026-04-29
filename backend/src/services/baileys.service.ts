@@ -6,18 +6,40 @@ interface BaileysInstance {
   qr: string;
   status: string;
   reconnectToken: symbol;
+  wasConnected: boolean; // true once connection reaches 'open'
+  failCount: number;     // consecutive failures without ever connecting
 }
 
 const instances = new Map<string, BaileysInstance>();
 
 // Baileys is ESM-only. TypeScript with module:commonjs compiles `await import()`
-// to `require()`, which fails for ESM packages. Use Function() to emit a native
-// import() call that Node.js handles correctly at runtime.
+// to `require()`, which fails for ESM packages. Function() emits a native import().
 const dynamicImport = new Function('modulePath', 'return import(modulePath)') as
   (m: string) => Promise<typeof import('@whiskeysockets/baileys')>;
 
 async function getBaileys() {
   return dynamicImport('@whiskeysockets/baileys');
+}
+
+// Cache WA version so we only hit GitHub once per server restart
+let cachedVersion: [number, number, number] | null = null;
+
+async function getWaVersion(): Promise<[number, number, number]> {
+  if (cachedVersion) return cachedVersion;
+  try {
+    const { fetchLatestBaileysVersion } = await getBaileys();
+    const result = await Promise.race([
+      fetchLatestBaileysVersion(),
+      new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), 8000)),
+    ]);
+    cachedVersion = result.version as [number, number, number];
+    console.log('[Baileys] WA version fetched:', cachedVersion.join('.'));
+    return cachedVersion;
+  } catch (e: any) {
+    console.warn('[Baileys] fetchLatestBaileysVersion failed, using fallback:', e?.message);
+    cachedVersion = [2, 3000, 1035194821];
+    return cachedVersion;
+  }
 }
 
 // ── DB-backed auth state ──────────────────────────────────────────────────────
@@ -94,7 +116,6 @@ async function handleIncomingMessage(channelId: string, rawMsg: any) {
   const msg = rawMsg.message || {};
   const pushName: string = rawMsg.pushName || phone;
 
-  // Detect type + extract content
   let msgType = 'TEXT';
   let content = '';
   let mediaUrl: string | null = null;
@@ -122,10 +143,9 @@ async function handleIncomingMessage(channelId: string, rawMsg: any) {
     msgType = 'STICKER';
     mediaType = msg.stickerMessage.mimetype || 'image/webp';
   } else if (msg.reactionMessage) {
-    return; // ignore reactions
+    return;
   }
 
-  // Download media to base64
   if (msgType !== 'TEXT') {
     try {
       const { downloadMediaMessage } = await getBaileys();
@@ -144,7 +164,6 @@ async function handleIncomingMessage(channelId: string, rawMsg: any) {
     }
   }
 
-  // Find or create lead
   let lead = await prisma.lead.findFirst({ where: { companyId: channel.companyId, phone } });
   if (!lead) {
     lead = await prisma.lead.create({
@@ -154,7 +173,6 @@ async function handleIncomingMessage(channelId: string, rawMsg: any) {
     lead = await prisma.lead.update({ where: { id: lead.id }, data: { name: pushName } });
   }
 
-  // Find or create conversation
   let conversation = await prisma.conversation.findFirst({
     where: { leadId: lead.id, channelInstanceId: channel.id, status: { notIn: ['RESOLVED', 'CLOSED'] } },
   });
@@ -236,20 +254,22 @@ const silentLogger = {
   child: () => silentLogger,
 } as any;
 
+const MAX_FIRST_CONNECT_FAILURES = 3; // stop retrying if never connected
+
 export async function connect(channelId: string): Promise<void> {
   closeInstance(channelId);
 
-  const { makeWASocket, DisconnectReason, Browsers, fetchLatestBaileysVersion } = await getBaileys();
+  const version = await getWaVersion();
+  const { makeWASocket, DisconnectReason, Browsers } = await getBaileys();
   const { state, saveCreds } = await useDatabaseAuthState(channelId);
 
-  // Always fetch the latest WA Web version — outdated versions get rejected by WhatsApp
-  const { version } = await fetchLatestBaileysVersion().catch(() => ({
-    version: [2, 3000, 1035194821] as [number, number, number],
-  }));
-  console.log(`[Baileys] channel ${channelId} connecting with WA version ${version.join('.')}`);
+  console.log(`[Baileys] connecting channel ${channelId} with WA ${version.join('.')}`);
 
   const token = Symbol();
-  const inst: BaileysInstance = { sock: null, qr: '', status: 'CONNECTING', reconnectToken: token };
+  const inst: BaileysInstance = {
+    sock: null, qr: '', status: 'CONNECTING',
+    reconnectToken: token, wasConnected: false, failCount: 0,
+  };
   instances.set(channelId, inst);
 
   const sock = makeWASocket({
@@ -277,11 +297,13 @@ export async function connect(channelId: string): Promise<void> {
         inst.status = 'CONNECTING';
         io.to(channel.companyId).emit('channel_qr', { channelId, qr: qrDataUrl });
         await prisma.channelInstance.update({ where: { id: channelId }, data: { status: 'CONNECTING' } });
-        console.log(`[Baileys] QR gerado para channel ${channelId}`);
+        console.log(`[Baileys] QR gerado para ${channelId}`);
       }
 
       if (connection === 'open') {
         inst.status = 'CONNECTED';
+        inst.wasConnected = true;
+        inst.failCount = 0;
         inst.qr = '';
         await prisma.channelInstance.update({ where: { id: channelId }, data: { status: 'CONNECTED' } });
         io.to(channel.companyId).emit('channel_status_updated', { channelId, status: 'CONNECTED' });
@@ -292,22 +314,43 @@ export async function connect(channelId: string): Promise<void> {
         const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
 
-        inst.status = loggedOut ? 'DISCONNECTED' : 'CONNECTING';
-        await prisma.channelInstance.update({ where: { id: channelId }, data: { status: inst.status } });
-        io.to(channel.companyId).emit('channel_status_updated', { channelId, status: inst.status });
+        console.log(`[Baileys] channel ${channelId} fechou: code=${statusCode} loggedOut=${loggedOut} wasConnected=${inst.wasConnected} failCount=${inst.failCount}`);
 
         if (loggedOut) {
-          console.log(`[Baileys] channel ${channelId} deslogado.`);
+          // Explicitly logged out — clear auth, don't reconnect
+          inst.status = 'DISCONNECTED';
+          await prisma.channelInstance.update({ where: { id: channelId }, data: { status: 'DISCONNECTED' } });
+          io.to(channel.companyId).emit('channel_status_updated', { channelId, status: 'DISCONNECTED' });
           instances.delete(channelId);
           await saveAuthToDB(channelId, null);
-        } else {
-          console.log(`[Baileys] channel ${channelId} desconectado (reason=${statusCode}), reconectando em 5s…`);
+          return;
+        }
+
+        inst.failCount += 1;
+
+        // If we were previously connected, keep retrying (session drop)
+        // If we NEVER connected, give up after MAX_FIRST_CONNECT_FAILURES
+        const shouldRetry = inst.wasConnected || inst.failCount < MAX_FIRST_CONNECT_FAILURES;
+
+        if (shouldRetry) {
+          inst.status = 'CONNECTING';
+          await prisma.channelInstance.update({ where: { id: channelId }, data: { status: 'CONNECTING' } });
+          io.to(channel.companyId).emit('channel_status_updated', { channelId, status: 'CONNECTING' });
+          const delay = inst.wasConnected ? 5000 : Math.min(5000 * inst.failCount, 15000);
+          console.log(`[Baileys] reconnecting in ${delay}ms (attempt ${inst.failCount})`);
           setTimeout(() => {
             const current = instances.get(channelId);
             if (current && current.reconnectToken === token) {
               connect(channelId).catch(console.error);
             }
-          }, 5000);
+          }, delay);
+        } else {
+          // Gave up — mark DISCONNECTED so user knows to retry manually
+          inst.status = 'DISCONNECTED';
+          await prisma.channelInstance.update({ where: { id: channelId }, data: { status: 'DISCONNECTED' } });
+          io.to(channel.companyId).emit('channel_status_updated', { channelId, status: 'DISCONNECTED' });
+          instances.delete(channelId);
+          console.log(`[Baileys] channel ${channelId} deu DISCONNECTED após ${inst.failCount} falhas.`);
         }
       }
     } catch (err) {
@@ -332,13 +375,11 @@ export function getStatus(channelId: string): string {
   return instances.get(channelId)?.status || 'DISCONNECTED';
 }
 
-// Disconnect socket but keep auth so it can reconnect later
 export async function disconnect(channelId: string): Promise<void> {
   closeInstance(channelId);
   await prisma.channelInstance.update({ where: { id: channelId }, data: { status: 'DISCONNECTED' } });
 }
 
-// Full logout: removes auth state from DB
 export async function logout(channelId: string): Promise<void> {
   const inst = instances.get(channelId);
   if (inst?.sock) {
@@ -383,7 +424,6 @@ export async function sendAudio(channelId: string, phone: string, audioUrl: stri
   await inst.sock.sendMessage(jid, { audio: { url: audioUrl }, ptt: true });
 }
 
-// Auto-reconnect all Baileys channels that have saved auth on server start
 export async function initAll(): Promise<void> {
   const channels = await prisma.channelInstance.findMany({
     where: { type: 'WHATSAPP_BAILEYS' },
@@ -396,11 +436,10 @@ export async function initAll(): Promise<void> {
       if (cfg.baileysAuth?.creds) {
         console.log(`[Baileys] Auto-reconnect: ${ch.name} (${ch.id})`);
         connect(ch.id).catch(e => console.error(`[Baileys] initAll error for ${ch.id}:`, e));
-        // Small stagger to avoid hammering WhatsApp servers
         await new Promise(r => setTimeout(r, 2000));
       }
     } catch (e) {
-      console.error(`[Baileys] initAll: error for ${ch.id}:`, e);
+      console.error(`[Baileys] initAll error for ${ch.id}:`, e);
     }
   }
 }

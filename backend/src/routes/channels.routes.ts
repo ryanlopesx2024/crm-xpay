@@ -89,7 +89,7 @@ router.post('/:id/connect', async (req: AuthRequest, res: Response): Promise<voi
     // ── Baileys direct connection ──────────────────────────────────────────
     if (channel.type === 'WHATSAPP_BAILEYS') {
       await baileysManager.connect(channel.id);
-      const qr = await waitForQR(channel.id, 8000);
+      const qr = await waitForQR(channel.id, 15000);
       res.json({ qrcode: qr || undefined, status: 'CONNECTING' });
       return;
     }

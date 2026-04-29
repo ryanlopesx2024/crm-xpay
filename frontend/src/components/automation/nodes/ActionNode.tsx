@@ -3,6 +3,8 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import {
   MessageSquare, Tag, User, Play, Mail, Globe, Filter, ArrowRight, Zap,
   AlignLeft, MessageCircle, Clock, Mic, Paperclip, Link2,
+  Briefcase, Trophy, TrendingDown, TrendingUp, DollarSign,
+  UserCheck, List, ListX, ShoppingCart, Package,
 } from 'lucide-react';
 import NodeActions from './NodeActions';
 import NodeAddBelow from './NodeAddBelow';
@@ -98,15 +100,28 @@ const ACTION_CONFIG: Record<string, {
   iconColor: string;
   iconBg: string;
 }> = {
-  SEND_MESSAGE:  { icon: MessageSquare, label: 'Mensagem',        iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
-  ADD_TAG:       { icon: Tag,           label: 'Adicionar Tag',   iconColor: 'text-blue-600',    iconBg: 'bg-blue-100'    },
-  REMOVE_TAG:    { icon: Tag,           label: 'Remover Tag',     iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
-  ASSIGN_AGENT:  { icon: User,          label: 'Atribuir',        iconColor: 'text-violet-600',  iconBg: 'bg-violet-100'  },
-  MOVE_PIPELINE: { icon: ArrowRight,    label: 'Mover Pipeline',  iconColor: 'text-indigo-600',  iconBg: 'bg-indigo-100'  },
-  CREATE_DEAL:   { icon: Zap,           label: 'Criar Negócio',   iconColor: 'text-orange-600',  iconBg: 'bg-orange-100'  },
-  FILTER_LEADS:  { icon: Filter,        label: 'Filtrar Leads',   iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
-  SEND_EMAIL:    { icon: Mail,          label: 'Enviar E-mail',   iconColor: 'text-sky-600',     iconBg: 'bg-sky-100'     },
-  HTTP_REQUEST:  { icon: Globe,         label: 'Webhook HTTP',    iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
+  // Ações gerais
+  SEND_MESSAGE:        { icon: MessageSquare, label: 'Mensagem',            iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
+  ADD_TAG:             { icon: Tag,           label: 'Adicionar Tag',       iconColor: 'text-blue-600',    iconBg: 'bg-blue-100'    },
+  REMOVE_TAG:          { icon: Tag,           label: 'Remover Tag',         iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
+  ASSIGN_AGENT:        { icon: User,          label: 'Atribuir',            iconColor: 'text-violet-600',  iconBg: 'bg-violet-100'  },
+  MOVE_PIPELINE:       { icon: ArrowRight,    label: 'Mover Pipeline',      iconColor: 'text-indigo-600',  iconBg: 'bg-indigo-100'  },
+  FILTER_LEADS:        { icon: Filter,        label: 'Filtrar Leads',       iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
+  SEND_EMAIL:          { icon: Mail,          label: 'Enviar E-mail',       iconColor: 'text-sky-600',     iconBg: 'bg-sky-100'     },
+  HTTP_REQUEST:        { icon: Globe,         label: 'Webhook HTTP',        iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
+  // Negócio
+  CREATE_DEAL:         { icon: Briefcase,     label: 'Criar Negócio',       iconColor: 'text-orange-600',  iconBg: 'bg-orange-100'  },
+  MARK_DEAL_WON:       { icon: Trophy,        label: 'Marcar como Ganho',   iconColor: 'text-green-600',   iconBg: 'bg-green-100'   },
+  MARK_DEAL_LOST:      { icon: TrendingDown,  label: 'Marcar como Perdido', iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
+  MOVE_DEAL_STAGE:     { icon: TrendingUp,    label: 'Mover Etapa',         iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
+  UPDATE_DEAL:         { icon: DollarSign,    label: 'Atualizar Negócio',   iconColor: 'text-orange-600',  iconBg: 'bg-orange-100'  },
+  // Lead
+  UPDATE_LEAD:         { icon: UserCheck,     label: 'Atualizar Lead',      iconColor: 'text-sky-600',     iconBg: 'bg-sky-100'     },
+  ADD_TO_LIST:         { icon: List,          label: 'Adicionar à Lista',   iconColor: 'text-sky-600',     iconBg: 'bg-sky-100'     },
+  REMOVE_FROM_LIST:    { icon: ListX,         label: 'Remover da Lista',    iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
+  // Produto
+  ADD_PRODUCT_TO_DEAL: { icon: ShoppingCart,  label: 'Adicionar Produto',   iconColor: 'text-purple-600',  iconBg: 'bg-purple-100'  },
+  REMOVE_PRODUCT:      { icon: Package,       label: 'Remover Produto',     iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
 };
 
 function PreviewArea({ action, nodeData }: { action: string; nodeData: Record<string, unknown> }) {

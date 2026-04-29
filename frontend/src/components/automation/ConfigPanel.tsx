@@ -4,6 +4,8 @@ import {
   ArrowRight, Globe, Filter, MessageSquare, AlignLeft, MessageCircle,
   Mic, Paperclip, Link2, Trash2, ChevronDown, ChevronUp, Plus,
   UploadCloud, CheckCircle2, Loader2, X,
+  Briefcase, Trophy, TrendingDown, TrendingUp, DollarSign,
+  UserCheck, List, ListX, ShoppingCart, Package,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -117,18 +119,32 @@ const VARIABLES = [
 ];
 
 const ACTION_META: Record<string, { icon: typeof MessageSquare; title: string; subtitle: string; iconColor: string; iconBg: string }> = {
-  SEND_MESSAGE:  { icon: MessageSquare, title: 'Mensagens',       subtitle: 'Envie mensagens pelo WhatsApp', iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
-  ADD_TAG:       { icon: Tag,           title: 'Adicionar Tag',   subtitle: 'Aplica uma tag ao lead',       iconColor: 'text-blue-600',    iconBg: 'bg-blue-100'    },
-  REMOVE_TAG:    { icon: Tag,           title: 'Remover Tag',     subtitle: 'Remove uma tag do lead',       iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
-  ASSIGN_AGENT:  { icon: User,          title: 'Atribuir',        subtitle: 'Atribui o lead a um atendente',iconColor: 'text-violet-600',  iconBg: 'bg-violet-100'  },
-  MOVE_PIPELINE: { icon: ArrowRight,    title: 'Mover Pipeline',  subtitle: 'Move o lead para outra etapa', iconColor: 'text-indigo-600',  iconBg: 'bg-indigo-100'  },
-  HTTP_REQUEST:  { icon: Globe,         title: 'Webhook HTTP',    subtitle: 'Envia dados para URL externa', iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
-  FILTER_LEADS:  { icon: Filter,        title: 'Filtrar Leads',   subtitle: 'Filtra leads por critérios',   iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
+  SEND_MESSAGE:        { icon: MessageSquare, title: 'Mensagens',            subtitle: 'Envie mensagens pelo WhatsApp',    iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
+  ADD_TAG:             { icon: Tag,           title: 'Adicionar Tag',        subtitle: 'Aplica uma tag ao lead',          iconColor: 'text-blue-600',    iconBg: 'bg-blue-100'    },
+  REMOVE_TAG:          { icon: Tag,           title: 'Remover Tag',          subtitle: 'Remove uma tag do lead',          iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
+  ASSIGN_AGENT:        { icon: User,          title: 'Atribuir',             subtitle: 'Atribui o lead a um atendente',   iconColor: 'text-violet-600',  iconBg: 'bg-violet-100'  },
+  MOVE_PIPELINE:       { icon: ArrowRight,    title: 'Mover Pipeline',       subtitle: 'Move o lead para outra etapa',    iconColor: 'text-indigo-600',  iconBg: 'bg-indigo-100'  },
+  HTTP_REQUEST:        { icon: Globe,         title: 'Webhook HTTP',         subtitle: 'Envia dados para URL externa',    iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
+  FILTER_LEADS:        { icon: Filter,        title: 'Filtrar Leads',        subtitle: 'Filtra leads por critérios',      iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
+  // Negócio
+  CREATE_DEAL:         { icon: Briefcase,     title: 'Criar Negócio',        subtitle: 'Cria um novo negócio no CRM',     iconColor: 'text-orange-600',  iconBg: 'bg-orange-100'  },
+  MARK_DEAL_WON:       { icon: Trophy,        title: 'Marcar como Ganho',    subtitle: 'Fecha o negócio como ganho',      iconColor: 'text-green-600',   iconBg: 'bg-green-100'   },
+  MARK_DEAL_LOST:      { icon: TrendingDown,  title: 'Marcar como Perdido',  subtitle: 'Fecha o negócio como perdido',    iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
+  MOVE_DEAL_STAGE:     { icon: TrendingUp,    title: 'Mover Etapa',          subtitle: 'Move o negócio para outra etapa', iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
+  UPDATE_DEAL:         { icon: DollarSign,    title: 'Atualizar Negócio',    subtitle: 'Atualiza campos do negócio',      iconColor: 'text-orange-600',  iconBg: 'bg-orange-100'  },
+  // Lead
+  UPDATE_LEAD:         { icon: UserCheck,     title: 'Atualizar Lead',       subtitle: 'Atualiza dados do lead',          iconColor: 'text-sky-600',     iconBg: 'bg-sky-100'     },
+  ADD_TO_LIST:         { icon: List,          title: 'Adicionar à Lista',    subtitle: 'Inclui o lead em uma lista',      iconColor: 'text-sky-600',     iconBg: 'bg-sky-100'     },
+  REMOVE_FROM_LIST:    { icon: ListX,         title: 'Remover da Lista',     subtitle: 'Remove o lead de uma lista',      iconColor: 'text-red-600',     iconBg: 'bg-red-100'     },
+  // Produto
+  ADD_PRODUCT_TO_DEAL: { icon: ShoppingCart,  title: 'Adicionar Produto',    subtitle: 'Vincula produto ao negócio',      iconColor: 'text-purple-600',  iconBg: 'bg-purple-100'  },
+  REMOVE_PRODUCT:      { icon: Package,       title: 'Remover Produto',      subtitle: 'Remove produto do negócio',       iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
 };
 const TYPE_META: Record<string, { icon: typeof MessageSquare; title: string; subtitle: string; iconColor: string; iconBg: string }> = {
-  trigger:   { icon: Zap,       title: 'Gatilho',  subtitle: 'Inicia a automação',            iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
-  condition: { icon: GitBranch, title: 'Condição', subtitle: 'Ramifica o fluxo com Se/Então', iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
-  delay:     { icon: Clock,     title: 'Aguardar', subtitle: 'Pausa o fluxo por um tempo',    iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
+  trigger:   { icon: Zap,           title: 'Gatilho',           subtitle: 'Inicia a automação',             iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
+  condition: { icon: GitBranch,     title: 'Condição',          subtitle: 'Ramifica o fluxo com Se/Então',  iconColor: 'text-amber-600',   iconBg: 'bg-amber-100'   },
+  delay:     { icon: Clock,         title: 'Aguardar',          subtitle: 'Pausa o fluxo por um tempo',     iconColor: 'text-slate-600',   iconBg: 'bg-slate-100'   },
+  userinput: { icon: MessageCircle, title: 'Entrada do Usuário',subtitle: 'Aguarda resposta do contato',    iconColor: 'text-violet-600',  iconBg: 'bg-violet-100'  },
 };
 
 const fieldClass = 'w-full text-sm border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all';
@@ -514,6 +530,144 @@ export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: Con
                 </div>
               </>
             )}
+
+            {/* ── Negócio actions ── */}
+            {action === 'CREATE_DEAL' && (() => {
+              const selectedPipelineId = String(formData.pipelineId || '');
+              const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
+              return (
+                <>
+                  <div>
+                    <p className={labelClass}>Nome do negócio</p>
+                    <input type="text" value={String(formData.dealName || '')} onChange={(e) => update('dealName', e.target.value)} className={fieldClass} placeholder="Ex: Proposta {nome}" />
+                  </div>
+                  <div>
+                    <p className={labelClass}>Valor <span className="text-slate-400 font-normal">(opcional)</span></p>
+                    <input type="number" min={0} value={String(formData.dealValue || '')} onChange={(e) => update('dealValue', e.target.value)} className={fieldClass} placeholder="0.00" />
+                  </div>
+                  <div>
+                    <p className={labelClass}>Pipeline</p>
+                    <select value={selectedPipelineId} onChange={(e) => { update('pipelineId', e.target.value); update('stageId', ''); }} className={fieldClass}>
+                      <option value="">— Selecione o pipeline —</option>
+                      {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  {selectedPipeline && (
+                    <div>
+                      <p className={labelClass}>Etapa inicial</p>
+                      <select value={String(formData.stageId || '')} onChange={(e) => update('stageId', e.target.value)} className={fieldClass}>
+                        <option value="">— Primeira etapa —</option>
+                        {selectedPipeline.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {(action === 'MARK_DEAL_WON' || action === 'MARK_DEAL_LOST') && (
+              <div>
+                <p className={labelClass}>Pipeline <span className="text-slate-400 font-normal">(opcional)</span></p>
+                <select value={String(formData.pipelineId || '')} onChange={(e) => update('pipelineId', e.target.value)} className={fieldClass}>
+                  <option value="">— Qualquer pipeline —</option>
+                  {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <p className="text-[9px] text-slate-400 mt-1">Se vazio, age sobre o negócio ativo do lead.</p>
+              </div>
+            )}
+
+            {(action === 'MOVE_DEAL_STAGE') && (() => {
+              const selectedPipelineId = String(formData.pipelineId || '');
+              const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
+              return (
+                <>
+                  <div>
+                    <p className={labelClass}>Pipeline</p>
+                    <select value={selectedPipelineId} onChange={(e) => { update('pipelineId', e.target.value); update('stageId', ''); }} className={fieldClass}>
+                      <option value="">— Selecione o pipeline —</option>
+                      {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  {selectedPipeline && (
+                    <div>
+                      <p className={labelClass}>Etapa de destino</p>
+                      <select value={String(formData.stageId || '')} onChange={(e) => update('stageId', e.target.value)} className={fieldClass}>
+                        <option value="">— Selecione a etapa —</option>
+                        {selectedPipeline.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {action === 'UPDATE_DEAL' && (
+              <>
+                <div>
+                  <p className={labelClass}>Campo a atualizar</p>
+                  <select value={String(formData.dealField || '')} onChange={(e) => update('dealField', e.target.value)} className={fieldClass}>
+                    <option value="">— Selecione o campo —</option>
+                    <option value="name">Nome do negócio</option>
+                    <option value="value">Valor</option>
+                    <option value="notes">Observações</option>
+                  </select>
+                </div>
+                <div>
+                  <p className={labelClass}>Novo valor</p>
+                  <input type="text" value={String(formData.dealFieldValue || '')} onChange={(e) => update('dealFieldValue', e.target.value)} className={fieldClass} placeholder="Novo valor..." />
+                </div>
+              </>
+            )}
+
+            {/* ── Lead actions ── */}
+            {action === 'UPDATE_LEAD' && (
+              <>
+                <div>
+                  <p className={labelClass}>Campo a atualizar</p>
+                  <select value={String(formData.leadField || '')} onChange={(e) => update('leadField', e.target.value)} className={fieldClass}>
+                    <option value="">— Selecione o campo —</option>
+                    <option value="name">Nome</option>
+                    <option value="email">E-mail</option>
+                    <option value="phone">Telefone</option>
+                    <option value="company">Empresa</option>
+                    <option value="source">Origem</option>
+                    <option value="notes">Observações</option>
+                  </select>
+                </div>
+                <div>
+                  <p className={labelClass}>Novo valor</p>
+                  <input type="text" value={String(formData.leadFieldValue || '')} onChange={(e) => update('leadFieldValue', e.target.value)} className={fieldClass} placeholder="Novo valor..." />
+                </div>
+              </>
+            )}
+
+            {(action === 'ADD_TO_LIST' || action === 'REMOVE_FROM_LIST') && (
+              <div>
+                <p className={labelClass}>Nome da lista</p>
+                <input type="text" value={String(formData.listName || '')} onChange={(e) => update('listName', e.target.value)} className={fieldClass} placeholder="Ex: leads-frios" />
+              </div>
+            )}
+
+            {/* ── Produto actions ── */}
+            {action === 'ADD_PRODUCT_TO_DEAL' && (
+              <>
+                <div>
+                  <p className={labelClass}>Produto</p>
+                  <input type="text" value={String(formData.productName || '')} onChange={(e) => update('productName', e.target.value)} className={fieldClass} placeholder="Nome do produto" />
+                </div>
+                <div>
+                  <p className={labelClass}>Quantidade</p>
+                  <input type="number" min={1} value={Number(formData.quantity || 1)} onChange={(e) => update('quantity', parseInt(e.target.value))} className={fieldClass} />
+                </div>
+              </>
+            )}
+
+            {action === 'REMOVE_PRODUCT' && (
+              <div>
+                <p className={labelClass}>Produto</p>
+                <input type="text" value={String(formData.productName || '')} onChange={(e) => update('productName', e.target.value)} className={fieldClass} placeholder="Nome do produto a remover" />
+              </div>
+            )}
           </div>
         )}
 
@@ -661,6 +815,63 @@ export default function ConfigPanel({ node, onClose, onSave, onDeleteNode }: Con
                   <option value="HOURS">Horas</option>
                   <option value="DAYS">Dias</option>
                 </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── USER INPUT ───────────────────────────────────────────────── */}
+        {node.type === 'userinput' && (
+          <div className="px-4 py-4 space-y-4">
+            <p className="text-xs text-slate-500">
+              Aguarda uma resposta do contato. Saída azul quando responde, vermelha quando o tempo esgota.
+            </p>
+            <div>
+              <p className={labelClass}>Pergunta / Instrução <span className="text-slate-400 font-normal">(opcional)</span></p>
+              <textarea
+                rows={3}
+                value={String(formData.question || '')}
+                onChange={(e) => update('question', e.target.value)}
+                className={`${fieldClass} resize-none`}
+                placeholder="Ex: Qual é o seu nome?"
+              />
+              <p className="text-[9px] text-slate-400 mt-1">Se preenchido, esta mensagem será enviada antes de aguardar.</p>
+            </div>
+            <div>
+              <p className={labelClass}>Salvar resposta em variável <span className="text-slate-400 font-normal">(opcional)</span></p>
+              <input
+                type="text"
+                value={String(formData.variable || '')}
+                onChange={(e) => update('variable', e.target.value)}
+                className={fieldClass}
+                placeholder="Ex: resposta_usuario"
+              />
+            </div>
+            <div>
+              <p className={labelClass}>Timeout (sem resposta → caminho vermelho)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input type="number" min={1} value={Number(formData.timeout || 5)} onChange={(e) => update('timeout', parseInt(e.target.value))} className={fieldClass} />
+                </div>
+                <div>
+                  <select value={String(formData.timeoutUnit || 'MINUTES')} onChange={(e) => update('timeoutUnit', e.target.value)} className={fieldClass}>
+                    <option value="SECONDS">Segundos</option>
+                    <option value="MINUTES">Minutos</option>
+                    <option value="HOURS">Horas</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-600 overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-[10px] font-semibold text-blue-600">Respondeu</span>
+                <span className="text-[9px] text-blue-400 ml-auto">saída azul</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <span className="text-[10px] font-semibold text-red-600">Sem resposta (timeout)</span>
+                <span className="text-[9px] text-red-400 ml-auto">saída vermelha</span>
               </div>
             </div>
           </div>

@@ -24,6 +24,7 @@ import ActionNode from './nodes/ActionNode';
 import ConditionNode from './nodes/ConditionNode';
 import DelayNode from './nodes/DelayNode';
 import GroupNode from './nodes/GroupNode';
+import UserInputNode from './nodes/UserInputNode';
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -31,6 +32,7 @@ const nodeTypes = {
   condition: ConditionNode,
   delay: DelayNode,
   group: GroupNode,
+  userinput: UserInputNode,
 };
 
 export interface AutomationCanvasProps {
@@ -73,8 +75,8 @@ function CanvasInner({ automation, onSave, onToggle, onDelete }: AutomationCanva
   const onConnect = useCallback(
     (connection: Connection) => {
       const edgeColor =
-        connection.sourceHandle === 'yes' ? '#3b82f6'
-        : connection.sourceHandle === 'no' ? '#ef4444'
+        connection.sourceHandle === 'yes' || connection.sourceHandle === 'responded' ? '#3b82f6'
+        : connection.sourceHandle === 'no' || connection.sourceHandle === 'timeout' ? '#ef4444'
         : '#94a3b8';
       setEdges((eds) => addEdge({ ...connection, animated: true, style: { stroke: edgeColor, strokeWidth: 2 } }, eds));
       setTimeout(pushHistory, 0);
@@ -344,6 +346,7 @@ function CanvasInner({ automation, onSave, onToggle, onDelete }: AutomationCanva
                 if (node.type === 'trigger') return '#10b981';
                 if (node.type === 'action') return '#6366f1';
                 if (node.type === 'condition') return '#f59e0b';
+                if (node.type === 'userinput') return '#8b5cf6';
                 return '#94a3b8';
               }}
               className="!bg-white dark:!bg-slate-800 !border !border-slate-200 dark:!border-slate-700 !rounded-xl"

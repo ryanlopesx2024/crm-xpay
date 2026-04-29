@@ -95,6 +95,8 @@ interface ContentItem {
   variable?: string;
   delay?: number;
   unit?: string;
+  timeout?: number;
+  timeoutUnit?: string;
   url?: string;
   filename?: string;
   mimeType?: string;
@@ -246,18 +248,18 @@ function ContentItemCard({ item, onChange, onDelete }: {
                 <div className="flex gap-2">
                   <input
                     type="number" min={1}
-                    value={(safeItem as any).timeout || 5}
-                    onChange={(e) => onChange({ ...safeItem, timeout: parseInt(e.target.value) } as any)}
+                    value={safeItem.timeout ?? 5}
+                    onChange={(e) => onChange({ ...safeItem, timeout: parseInt(e.target.value) || 1 })}
                     className={`${fieldClass} w-24`}
                   />
                   <select
-                    value={(safeItem as any).timeoutUnit || 'MINUTES'}
-                    onChange={(e) => onChange({ ...safeItem, timeoutUnit: e.target.value } as any)}
+                    value={safeItem.timeoutUnit || 'MINUTES'}
+                    onChange={(e) => onChange({ ...safeItem, timeoutUnit: e.target.value })}
                     className={`${fieldClass} flex-1`}
                   >
-                    <option value="SECONDS">Segundos</option>
                     <option value="MINUTES">Minutos</option>
                     <option value="HOURS">Horas</option>
+                    <option value="DAYS">Dias</option>
                   </select>
                 </div>
               </div>

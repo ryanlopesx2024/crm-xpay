@@ -11,7 +11,8 @@ import NodeAddBelow from './NodeAddBelow';
 
 interface ContentItem {
   id: string; type: string; text?: string; placeholder?: string;
-  delay?: number; unit?: string; url?: string; filename?: string; mimeType?: string; label?: string;
+  delay?: number; unit?: string; timeout?: number; timeoutUnit?: string;
+  url?: string; filename?: string; mimeType?: string; label?: string;
 }
 
 const CONTENT_ICON: Record<string, { icon: typeof AlignLeft; color: string; bg: string }> = {
@@ -43,7 +44,14 @@ function ContentPreview({ item }: { item: ContentItem }) {
   }
 
   if (item.type === 'user_input') {
-    return <p className="text-[10px] text-violet-500 italic">{item.placeholder || item.text || 'Aguarda resposta do usuário'}</p>;
+    const tUnit = item.timeoutUnit === 'HOURS' ? 'h' : item.timeoutUnit === 'DAYS' ? 'd' : 'min';
+    const tVal = item.timeout ?? 5;
+    return (
+      <div>
+        <p className="text-[10px] text-violet-500 italic">{item.placeholder || item.text || 'Aguarda resposta do usuário'}</p>
+        <p className="text-[9px] text-amber-500 mt-0.5">⏱ timeout: {tVal}{tUnit}</p>
+      </div>
+    );
   }
 
   if (item.type === 'delay') {

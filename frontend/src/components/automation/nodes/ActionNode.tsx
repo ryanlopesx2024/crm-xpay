@@ -282,29 +282,33 @@ export default function ActionNode({ id, data, selected }: NodeProps) {
         <PreviewArea action={action} nodeData={nodeData} />
 
         {hasUserInput ? (
-          <div className="px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-end relative">
-            <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              <span className="text-[9px] text-blue-600 font-semibold">Respondeu</span>
+          <div className="border-t border-slate-100 dark:border-slate-700">
+            <div className="relative flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+              <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium flex-1 pr-4 leading-tight">
+                Respondeu
+              </span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="responded"
+                className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
+              />
+              <NodeAddBelow nodeId={id} sourceHandle="responded" side="right" show={hovered} />
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[9px] text-red-500 font-semibold">Sem resposta</span>
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <div className="relative flex items-center gap-2 px-3 py-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+              <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium flex-1 pr-4 leading-tight">
+                Sem resposta (timeout)
+              </span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="timeout"
+                className="!w-3 !h-3 !bg-red-500 !border-2 !border-white"
+              />
+              <NodeAddBelow nodeId={id} sourceHandle="timeout" side="right" show={hovered} />
             </div>
-            <Handle
-              type="source"
-              position={Position.Bottom}
-              id="responded"
-              style={{ left: '28%', bottom: -6 }}
-              className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
-            />
-            <Handle
-              type="source"
-              position={Position.Bottom}
-              id="timeout"
-              style={{ left: '72%', bottom: -6 }}
-              className="!w-3 !h-3 !bg-red-500 !border-2 !border-white"
-            />
           </div>
         ) : (
           <Handle
